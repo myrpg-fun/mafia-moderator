@@ -242,6 +242,11 @@ fn SetupUsers() -> impl IntoView {
                 }
 
                 set_mafia_ctx.update(|ctx| {
+                    // check if user already exists
+                    if ctx.users.iter().any(|u| u.name == name.get()) {
+                        return;
+                    }
+
                     ctx.users.push(User::new(name.get().clone()));
                     // sort users by name
                     ctx.users.sort_by(|a, b| a.name.cmp(&b.name));
@@ -284,8 +289,8 @@ fn UserRow(user: User) -> impl IntoView {
 
     view! {
         <div class="flex gap-2">
-            <div class="flex-1 px-3 py-1 text-sm bg-gray-200 rounded-full">{user.name.clone()}</div>
-            <button
+            <div class="flex-1 px-3 py-1 text-base bg-gray-200 rounded-full">{user.name.clone()}</div>
+            <button class="text-lg"
                 on:click=move |_| {
                     users.update(|ctx| ctx.users.retain(|u| *u != user));
                 }
