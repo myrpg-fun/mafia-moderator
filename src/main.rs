@@ -197,7 +197,7 @@ fn Mafia() -> impl IntoView {
     };
 
     view! {
-        <div class="flex flex-col justify-start items-center h-screen gap-4 p-4">
+        <div class="flex flex-col justify-start items-center w-full h-full gap-4 p-4">
             <h1 class="text-lg relative w-full text-left">
                 "Мафия"
                 <button
