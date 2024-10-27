@@ -574,24 +574,12 @@ video {
   right: 0px;
 }
 
-.right-1 {
-  right: 0.25rem;
-}
-
-.top-0 {
-  top: 0px;
-}
-
-.top-1 {
-  top: 0.25rem;
-}
-
 .right-2 {
   right: 0.5rem;
 }
 
-.top-0\.5 {
-  top: 0.125rem;
+.top-0 {
+  top: 0px;
 }
 
 .top-\[0\.15rem\] {
@@ -618,8 +606,8 @@ video {
   height: 1rem;
 }
 
-.h-screen {
-  height: 100vh;
+.h-full {
+  height: 100%;
 }
 
 .min-h-screen {
@@ -802,12 +790,12 @@ video {
   text-align: left;
 }
 
-.text-center {
-  text-align: center;
-}
-
 .font-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.text-\[0\.5rem\] {
+  font-size: 0.5rem;
 }
 
 .text-lg {
@@ -823,10 +811,6 @@ video {
 .text-xs {
   font-size: 0.75rem;
   line-height: 1rem;
-}
-
-.text-\[0\.5rem\] {
-  font-size: 0.5rem;
 }
 
 .text-blue-950 {
@@ -881,3 +865,9 @@ video {
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 
+html, body{
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
