@@ -20,8 +20,6 @@ enum Role {
     Prostitute,
 }
 
-const CHECK_ROLES: [Role; 3] = [Role::Doctor, Role::Detective, Role::Prostitute];
-
 #[derive(Clone, Debug)]
 struct User {
     name: String,
@@ -62,33 +60,30 @@ fn reset_user_roles(users: &mut Vec<User>) {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct SetupRoles(Role);
-
-#[derive(Clone, Copy, Debug)]
-enum GameState {
+enum GameState<'a> {
     // default
     SetupNames,
-    SetupRoles(Role),
+    SetupRoles(&'a RoleInfo),
     Day,
-    Night(Role),
+    Night(&'a RoleInfo),
     End,
 }
 
-impl Default for GameState {
+impl Default for GameState<'_> {
     fn default() -> Self {
         GameState::SetupNames
     }
 }
 
 #[derive(Clone, Debug)]
-struct MafiaContext {
+struct MafiaContext<'a> {
     users: Vec<User>,
-    game_state: GameState,
+    game_state: GameState<'a>,
 }
 
 const STORAGE_KEY: &str = "mafia_users";
 
-impl Default for MafiaContext {
+impl Default for MafiaContext<'_> {
     fn default() -> Self {
         let starting_users = window()
             .local_storage()
@@ -112,42 +107,86 @@ impl Default for MafiaContext {
     }
 }
 
-const MAFIA_PREPARE_ROLES: [Role; 5] = [
-    Role::Mafia,
-    Role::Detective,
-    Role::Doctor,
-    Role::Maniac,
-    Role::Prostitute,
-];
-
-fn get_next_prepare_role(role: Role) -> Option<Role> {
-    let role_index = MAFIA_PREPARE_ROLES.iter().position(|r| r == &role).unwrap();
-
-    MAFIA_PREPARE_ROLES.get(role_index.wrapping_add(1)).copied()
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct RoleInfo {
+    role: Role,
+    role_icon: &'static str,
+    role_name: &'static str,
+    role_name_color: &'static str,
+    prepare_description: &'static str,
+    night_description: &'static str,
+    can_choose_twice: bool,
+    is_night_role: bool,
 }
 
-fn get_prev_prepare_role(role: Role) -> Option<Role> {
-    let role_index = MAFIA_PREPARE_ROLES.iter().position(|r| r == &role).unwrap();
-
-    let prev_index = role_index.checked_sub(1);
-    match prev_index {
-        Some(prev_index) => MAFIA_PREPARE_ROLES.get(prev_index).copied(),
-        None => None,
-    }
-}
-
-const MAFIA_NIGHT_ROLES: [Role; 5] = [
-    Role::Mafia,
-    Role::Detective,
-    Role::Doctor,
-    Role::Maniac,
-    Role::Prostitute,
+const MAFIA_ROLES: [RoleInfo; 5] = [
+    //Role::Mafia,
+    RoleInfo {
+        role: Role::Mafia,
+        role_name: "Мафия",
+        role_name_color: "text-red-950",
+        role_icon: "🔫",
+        prepare_description: "Выберите игроков Мафии",
+        night_description: "Кого убьет Мафия?",
+        can_choose_twice: true,
+        is_night_role: true,
+    },
+    //Role::Detective,
+    RoleInfo {
+        role: Role::Detective,
+        role_name: "Детектив",
+        role_name_color: "text-blue-950",
+        role_icon: "🔍",
+        prepare_description: "Выберите игрока Детектива",
+        night_description: "Кого проверит Детектив?",
+        can_choose_twice: false,
+        is_night_role: true,
+    },
+    //Role::Doctor,
+    RoleInfo {
+        role: Role::Doctor,
+        role_name: "Доктор",
+        role_name_color: "text-green-950",
+        role_icon: "🚑",
+        prepare_description: "Выберите игрока Доктора",
+        night_description: "Кого спасет Доктор?",
+        can_choose_twice: false,
+        is_night_role: true,
+    },
+    //Role::Maniac,
+    RoleInfo {
+        role: Role::Maniac,
+        role_name: "Маньяк",
+        role_name_color: "text-gray-950",
+        role_icon: "🔪",
+        prepare_description: "Выберите игрока Маньяка",
+        night_description: "Кого убьет Маньяк?",
+        can_choose_twice: false,
+        is_night_role: true,
+    },
+    //Role::Prostitute,
+    RoleInfo {
+        role: Role::Prostitute,
+        role_name: "Проститутка",
+        role_name_color: "text-purple-950",
+        role_icon: "💋",
+        prepare_description: "Выберите игрока Проститутку",
+        night_description: "К кому зайдет Проститутка?",
+        can_choose_twice: false,
+        is_night_role: true,
+    },
 ];
 
-fn get_next_night_role(role: Role) -> Option<Role> {
-    let role_index = MAFIA_NIGHT_ROLES.iter().position(|r| r == &role).unwrap();
+fn get_next_prepare_role(role: Role) -> Option<&'static RoleInfo> {
+    let role_index = MAFIA_ROLES.iter().position(|r| r.role == role).unwrap();
 
-    MAFIA_NIGHT_ROLES.get(role_index.wrapping_add(1)).copied()
+    MAFIA_ROLES.get(role_index.wrapping_add(1))
+}
+
+fn get_next_night_role(role: Role) -> Option<&'static RoleInfo> {
+    let role_index = MAFIA_ROLES.iter().position(|r| r.role == role).unwrap();
+
+    MAFIA_ROLES.get(role_index.wrapping_add(1))
 }
 
 #[component]
@@ -187,7 +226,7 @@ fn Mafia() -> impl IntoView {
         }
         .into_view(),
         GameState::Night(role) => view! {
-            <NightTurn role={role} />
+            <NightTurn role_info={role} />
         }
         .into_view(),
         GameState::End => view! {
@@ -270,15 +309,27 @@ fn SetupUsers() -> impl IntoView {
                     "Добавить"
                 </button>
             </form>
-            <button
-                on:click=move |_| set_mafia_ctx.update(|ctx| {
-                    reset_user_roles(&mut ctx.users);
-                    ctx.game_state = GameState::SetupRoles(Role::Mafia);
-                })
-                class="px-4 py-1 bg-gray-200 rounded-full"
-            >
-                "Начать игру"
-            </button>
+            <div class="flex gap-1 items-center justify-between">
+                // <button
+                //         on:click=move |_| set_mafia_ctx.update(|ctx| {
+                //             reset_user_roles(&mut ctx.users);
+                //             ctx.game_state = GameState::SetupRoles(Role::Mafia);
+                //         })
+                //         class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
+                // >
+                //     "Начать Werewolf"
+                // </button>
+                <button
+                    on:click=move |_| set_mafia_ctx.update(|ctx| {
+                        reset_user_roles(&mut ctx.users);
+                        let first_role = MAFIA_ROLES.first().unwrap();
+                        ctx.game_state = GameState::SetupRoles(&first_role);
+                    })
+                    class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
+                >
+                    "Начать Мафия"
+                </button>
+            </div>
         </div>
     }
 }
@@ -302,43 +353,37 @@ fn UserRow(user: User) -> impl IntoView {
 }
 
 #[component]
-fn SetupRolesView(role: Role) -> impl IntoView {
+fn SetupRolesView<'a>(role: &'a RoleInfo) -> impl IntoView {
     view! {
         <div class="flex-1 flex flex-col gap-4 w-full">
             <SetupRolesHeader role=role />
             <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
                 <SelectUserForRole role=role />
             </div>
-            <TurnButtons role=role />
+            <TurnButtons role_info=role />
         </div>
     }
 }
 
 #[component]
-fn SetupRolesHeader(role: Role) -> impl IntoView {
+fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
     view! {
         <div class="flex flex-col gap-2">
             <h2>
-                {move || match role {
-                    Role::Mafia => "Выберите игроков Мафии",
-                    Role::Detective => "Выберите игрока Детектива",
-                    Role::Doctor => "Выберите игрока Доктора",
-                    Role::Maniac => "Выберите игрока Маньяка",
-                    Role::Prostitute => "Выберите игрока Проститутку",
-                    _ => "",
-                }}
+                {role.prepare_description}
             </h2>
         </div>
     }
 }
 
 #[component]
-fn SelectUserForRole(role: Role) -> impl IntoView {
+fn SelectUserForRole<'a>(role: &'a RoleInfo) -> impl IntoView {
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
     let set_mafia_context =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
     let users = move || mafia_context.get().users;
+    let role = role.role;
 
     view! {
         <div class="grid grid-cols-3 gap-1">
@@ -356,10 +401,15 @@ fn SelectUserForRole(role: Role) -> impl IntoView {
                             on:click=move |_| {
                                 set_mafia_context.update(|ctx| {
                                     if let Some(user) = ctx.users.iter_mut().find(|u| **u == user) {
-                                        if user.role == role {
-                                            user.role = Role::None;
-                                        } else {
-                                            user.role = role;
+                                        match user.role{
+                                            Role::None => {
+                                                user.role = role;
+                                            }
+                                            _ => {
+                                                if user.role == role {
+                                                    user.role = Role::None;
+                                                }
+                                            }
                                         }
                                     }
                                 });
@@ -442,54 +492,56 @@ fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView 
 
 #[component]
 fn UserRoleIcon(role: Role, is_hystory: bool) -> impl IntoView {
-    view! {
-        <div
-            class=move || if is_hystory {"text-xs opacity-70 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
-        >
-            {move || match role {
-                Role::Mafia => "🔫",
-                Role::Detective => "🔍",
-                Role::Doctor => "🚑",
-                Role::Maniac => "🔪",
-                Role::Prostitute => "💋",
-                _ => "",
-            }}
-        </div>
-    }
+    MAFIA_ROLES
+        .iter()
+        .find(|r| r.role == role)
+        .map(|role_info| {
+            view! {
+                <div 
+                    class=move || if is_hystory {"text-xs opacity-70 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
+                >
+                    {role_info.role_icon}
+                </div>
+            }
+        })
 }
 
 #[component]
 fn UserRoleName(role: Role) -> impl IntoView {
-    view! {
-        <div
-            class=move || match role {
-                Role::Mafia => "text-xs text-red-950 opacity-50",
-                Role::Detective => "text-xs text-blue-950 opacity-50",
-                Role::Doctor => "text-xs text-green-950 opacity-50",
-                Role::Maniac => "text-xs text-gray-950 opacity-50",
-                Role::Prostitute => "text-xs text-purple-950 opacity-50",
-                _ => "text-xs opacity-20",
+    MAFIA_ROLES
+        .iter()
+        .find(|r| r.role == role)
+        .map_or_else(move || {
+            view! {
+                <div 
+                    class="text-xs opacity-20"
+                >
+                    "Не выбрано"
+                </div>
             }
-        >
-            {move || match role {
-                Role::Mafia => "Мафия",
-                Role::Detective => "Детектив",
-                Role::Doctor => "Доктор",
-                Role::Maniac => "Маньяк",
-                Role::Prostitute => "Проститутка",
-                _ => "Не выбрано",
-            }}
-        </div>
-    }
+        }, move |role_info| {
+            view! {
+                <div
+                    class=move || {
+                        let mut class = "text-xs opacity-50 ".to_string();
+                        class.push_str(role_info.role_name_color);
+                        class
+                    }
+                >
+                    {role_info.role_name}
+                </div>
+            }
+        }).into_view()
 }
 
 #[component]
-fn TurnButtons(role: Role) -> impl IntoView {
+fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let game_state = use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
+    let role = role_info.role;
     let onclick_next_role = move |_| {
         game_state.update(|ctx| match get_next_prepare_role(role) {
-            Some(role) => ctx.game_state = GameState::SetupRoles(role),
+            Some(role_info) => ctx.game_state = GameState::SetupRoles(role_info),
             None => {
                 ctx.game_state = GameState::Day;
             }
@@ -497,12 +549,12 @@ fn TurnButtons(role: Role) -> impl IntoView {
     };
 
     let onclick_prev_role = move |_| {
-        game_state.update(|ctx| {
-            ctx.game_state = match get_prev_prepare_role(role) {
-                Some(role) => GameState::SetupRoles(role),
-                None => GameState::SetupNames,
-            }
-        });
+        // game_state.update(|ctx| {
+        //     ctx.game_state = match get_prev_prepare_role(role_info) {
+        //         Some(role) => GameState::SetupRoles(role),
+        //         None => GameState::SetupNames,
+        //     }
+        // });
     };
 
     view! {
@@ -590,14 +642,14 @@ fn DayVote() -> impl IntoView {
         set_game_state.update(|state| {
             clear_choosed_by(&mut state.users);
 
-            let mut next_role = Some(Role::Mafia);
+            let mut next_role = Some(MAFIA_ROLES.first().unwrap());
             loop {
                 if let Some(check_role) = next_role {
-                    if is_role_alive(check_role, &state.users) {
+                    if is_role_alive(check_role.role, &state.users) {
                         state.game_state = GameState::Night(check_role);
                         break;
                     }
-                    next_role = get_next_night_role(check_role);
+                    next_role = get_next_night_role(check_role.role);
                 } else {
                     state.game_state = GameState::SetupNames;
                     break;
@@ -618,7 +670,10 @@ fn DayVote() -> impl IntoView {
 }
 
 #[component]
-fn EndDayTurnButtons(onclick_next_role: impl Fn() + 'static) -> impl IntoView {
+fn EndDayTurnButtons<F>(onclick_next_role: F) -> impl IntoView
+where
+    F: Fn() + 'static,
+{
     view! {
         <div class="flex gap-2 w-full items-center">
             <div></div>
@@ -638,29 +693,29 @@ fn is_role_alive(role: Role, users: &[User]) -> bool {
     users.iter().any(|u| u.role == role && u.is_alive)
 }
 
-fn get_next_night_alive_role(role: Role, users: &[User]) -> Option<Role> {
+fn get_next_night_alive_role(role: Role, users: &[User]) -> Option<&'static RoleInfo> {
     let mut next_role = role;
     loop {
         let check_role = get_next_night_role(next_role);
         if let Some(check_role) = check_role {
-            if is_role_alive(check_role, users) {
+            if is_role_alive(check_role.role, users) {
                 return Some(check_role);
             }
-            next_role = check_role;
+            next_role = check_role.role;
         } else {
             return None;
         }
     }
 }
 
-fn clear_choosed_by(users: &mut Vec<User>) {
+fn clear_choosed_by(users: &mut [User]) {
     for user in users.iter_mut() {
         user.hystory_by.extend(user.choosed_by.iter());
         user.choosed_by.clear();
     }
 }
 
-fn calculate_night_kills(users: &mut Vec<User>) {
+fn calculate_night_kills(users: &mut [User]) {
     // Mafia killed choosed user if he is not protected by doctor or prostitute
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
@@ -709,12 +764,13 @@ fn calculate_night_kills(users: &mut Vec<User>) {
 }
 
 #[component]
-fn NightTurn(role: Role) -> impl IntoView {
-    let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
+fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let set_game_state =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let night_description = role_info.night_description;
 
     let (selected_user, set_selected_user) = create_signal::<Option<String>>(None);
+    let role = role_info.role;
 
     let onclick_next_role = move || {
         let selected_user = selected_user.get();
@@ -726,35 +782,30 @@ fn NightTurn(role: Role) -> impl IntoView {
             })
         }
 
-        let users = &mut mafia_context.get().users;
-
-        let next_role = get_next_night_alive_role(role, users);
         set_game_state.update(|state| {
+            let next_role = get_next_night_alive_role(role, &state.users);
+
             match next_role {
-                Some(next_role) => state.game_state = GameState::Night(next_role),
+                Some(next_role) => {
+                    state.game_state = GameState::Night(next_role);
+                }
                 None => {
                     calculate_night_kills(&mut state.users);
                     state.game_state = GameState::Day;
                 }
-            };
+            }
         });
     };
 
+    let role_info_clone = role_info.clone();
     let is_disabled = move |user: &User| {
-        !user.is_alive || (CHECK_ROLES.contains(&role) && user.hystory_by.contains(&role))
+        !user.is_alive || (!role_info_clone.can_choose_twice && user.hystory_by.contains(&role))
     };
 
     view! {
         <div class="flex-1 flex flex-col gap-4 w-full">
             <h2>
-                {move || match role {
-                    Role::Mafia => "Кого убьет Мафия?",
-                    Role::Detective => "Кого проверит Детектив?",
-                    Role::Doctor => "Кого спасет Доктор?",
-                    Role::Maniac => "Кого убьет Маньяк?",
-                    Role::Prostitute => "К кому зайдет Проститутка?",
-                    _ => "",
-                }}
+                {night_description}
             </h2>
             <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
                 <SelectUserForVote selected_user set_selected_user is_disabled />
