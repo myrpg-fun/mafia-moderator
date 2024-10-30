@@ -1,77 +1,151 @@
 use std::collections::HashSet;
 
-use leptos::*;
-use crate::user::*;
 use crate::roles::*;
+use crate::user::*;
 use crate::GameState;
 use crate::MafiaContext;
+use leptos::*;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum MafiaRole {
+pub enum WerewolfRole {
     None,
-    Citizen,
-    Mafia,
-    Doctor,
-    Detective,
-    Maniac,
-    Prostitute,
+    Villager,
+    Werewolf,
+    DireWolf,
+    //    LoneWolf,
+    WolfCub,
+    Minion,
+    Cursed,
+    Bodyguard,
+    Priest,
+    Witch,
+    WitchPoison,
+    ToughGuy,
+    Seer,
+    ApprenticeSeer,
+    AuraSeer,
+    Spellcaster,
+    Lycan,
+    Mayor,
+    Hunter,
+    Huntress,
+    ParanormalInvestigator,
+    Prince,
+    Diseased,
+    Mason,
+    Lovers,
+    Doppelganger,
+    AlphaWolf,
+    MadBomber,
+    Revealer,
 }
 
-pub const MAFIA_ROLES: [RoleInfo; 5] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 13] = [
     RoleInfo::Night(NightRoleInfo {
-        role: Role::Mafia(MafiaRole::Mafia),
+        role: Role::Werewolf(WerewolfRole::Priest),
         check_role: None,
-        role_name: "Мафия",
-        role_name_color: "text-red-950",
-        role_icon: "🔫",
-        prepare_description: "Выберите игроков Мафии",
-        night_description: "Кого убьет Мафия?",
-        targeting_rules: NightTargetingRules::Anyone,
+        role_icon: "🙏",
+        role_name: "Priest",
+        role_name_color: "text-green-950",
+        prepare_description: "Выберите игрока Priest",
+        night_description: "Кого освятит Priest?",
+        targeting_rules: NightTargetingRules::OnlyOne,
     }),
     RoleInfo::Night(NightRoleInfo {
-        role: Role::Mafia(MafiaRole::Detective),
+        role: Role::Werewolf(WerewolfRole::Bodyguard),
         check_role: None,
-        role_name: "Детектив",
+        role_name: "Bodyguard",
+        role_name_color: "text-green-950",
+        role_icon: "🛡️",
+        prepare_description: "Выберите игрока Bodyguard",
+        night_description: "Кого защитит Bodyguard?",
+        targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Werewolf),
+        check_role: None,
+        role_name: "Werewolf",
+        role_name_color: "text-red-950",
+        role_icon: "🐺",
+        prepare_description: "Просыпаются Werewolf и Minion (выберите только игроков Werewolf)",
+        night_description: "Кого убьют Werewolf?",
+        targeting_rules: NightTargetingRules::Anyone,
+    }),
+    RoleInfo::Additional(AdditionalRoleInfo {
+        role: Role::Werewolf(WerewolfRole::DireWolf),
+        role_icon: "💙",
+        prepare_description: "Dire Wolf открывает глаза и выбирает в кого он влюблен (выберите Dire Wolf и второго игрока)",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Cursed),
+        role_name: "Cursed",
+        role_name_color: "text-purple-950",
+        prepare_description: "Выберите игрока Cursed",
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Witch),
+        check_role: None,
+        role_icon: "🌿",
+        role_name: "Witch",
+        role_name_color: "text-green-950",
+        prepare_description: "Выберите игрока Witch",
+        night_description: "Кого вылечит Witch?",
+        targeting_rules: NightTargetingRules::OnlyOne,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::WitchPoison),
+        check_role: Some(Role::Werewolf(WerewolfRole::Witch)),
+        role_icon: "☠️",
+        role_name: "Witch",
+        role_name_color: "text-green-950",
+        prepare_description: "",
+        night_description: "Кого отравит Witch?",
+        targeting_rules: NightTargetingRules::OnlyOne,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Seer),
+        check_role: None,
+        role_name: "Seer",
         role_name_color: "text-blue-950",
         role_icon: "🔍",
-        prepare_description: "Выберите игрока Детектива",
-        night_description: "Кого проверит Детектив?",
+        prepare_description: "Выберите игрока Seer",
+        night_description: "Кого проверит Seer?",
         targeting_rules: NightTargetingRules::NotTheSame,
     }),
-    RoleInfo::Night(NightRoleInfo {
-        role: Role::Mafia(MafiaRole::Doctor),
-        check_role: None,
-        role_name: "Доктор",
-        role_name_color: "text-green-950",
-        role_icon: "🚑",
-        prepare_description: "Выберите игрока Доктора",
-        night_description: "Кого спасет Доктор?",
-        targeting_rules: NightTargetingRules::NotTheSame,
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::ToughGuy),
+        role_name: "Tough Guy",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игрока Tough Guy",
     }),
-    RoleInfo::Night(NightRoleInfo {
-        role: Role::Mafia(MafiaRole::Maniac),
-        check_role: None,
-        role_name: "Маньяк",
-        role_name_color: "text-gray-950",
-        role_icon: "🔪",
-        prepare_description: "Выберите игрока Маньяка",
-        night_description: "Кого убьет Маньяк?",
-        targeting_rules: NightTargetingRules::Anyone,
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Mayor),
+        role_name: "Mayor",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игрока Mayor",
     }),
-    RoleInfo::Night(NightRoleInfo {
-        role: Role::Mafia(MafiaRole::Prostitute),
-        check_role: None,
-        role_name: "Проститутка",
-        role_name_color: "text-purple-950",
-        role_icon: "💋",
-        prepare_description: "Выберите игрока Проститутку",
-        night_description: "К кому зайдет Проститутка?",
-        targeting_rules: NightTargetingRules::NotTheSame,
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Lycan),
+        role_name: "Lycan",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игроков Lycan",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Mason),
+        role_name: "Mason",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игроков Mason",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Lovers),
+        role_name: "Lovers",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игроков Lovers",
     }),
 ];
 
 #[derive(Clone, Copy, Debug)]
-pub enum MafiaGameState<'a> {
+pub enum WerewolfGameState<'a> {
     SetupRoles(&'a RoleInfo),
     Day,
     Night(&'a RoleInfo),
@@ -79,51 +153,66 @@ pub enum MafiaGameState<'a> {
 }
 
 fn get_next_prepare_role(role: Role) -> Option<&'static RoleInfo> {
-    let role_index = MAFIA_ROLES.iter().position(|r| *r == role).unwrap();
+    let role_index = WEREWOLF_ROLES
+        .iter()
+        .position(|r| r.get_role() == role)
+        .unwrap();
 
-    MAFIA_ROLES.get(role_index.wrapping_add(1))
+    let next_role = WEREWOLF_ROLES
+        .iter()
+        .skip(role_index.wrapping_add(1))
+        .find(|r| !r.get_prepare_description().is_empty());
+
+    next_role
 }
 
-fn get_next_night_role(role: Role) -> Option<&'static RoleInfo> {
-    let role_index = MAFIA_ROLES.iter().position(|r| *r == role).unwrap();
+fn get_next_night_role(role: &RoleInfo) -> Option<&'static RoleInfo> {
+    let role_index = WEREWOLF_ROLES.iter().position(|r| r == role).unwrap();
 
-    MAFIA_ROLES.get(role_index.wrapping_add(1))
+    // Find next night role
+    let next_role = WEREWOLF_ROLES
+        .iter()
+        .skip(role_index.wrapping_add(1))
+        .find(|r| matches!(r, RoleInfo::Night(_)));
+
+    next_role
 }
 
 #[component]
-pub fn MafiaGameView() -> impl IntoView {
+pub fn WerewolfGameView() -> impl IntoView {
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
     let set_mafia_context =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
     let game_state_view = move || match mafia_context.get().game_state {
-        GameState::Mafia(game_state) => match game_state {
-            MafiaGameState::SetupRoles(role) => view! {
+        GameState::Werewolf(game_state) => match game_state {
+            WerewolfGameState::SetupRoles(role) => view! {
                 <SetupRolesView role={role} />
             }
             .into_view(),
 
-            MafiaGameState::Day => view! {
+            WerewolfGameState::Day => view! {
                 <DayVote />
             }
             .into_view(),
-            MafiaGameState::Night(role) => view! {
+            WerewolfGameState::Night(role) => view! {
                 <NightTurn role_info={role} />
             }
             .into_view(),
-            MafiaGameState::End => view! {
+            WerewolfGameState::End => view! {
                 <div>"Конец игры"</div>
             }
             .into_view(),
         },
         _ => view! {
             <div>"Ошибка"</div>
-        }.into_view()
+        }
+        .into_view(),
     };
 
     view! {
         <h1 class="text-lg relative w-full text-left">
-            "Мафия"
+            "Werewolf"
             <button
                 class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
                 on:click=move |_| set_mafia_context.set(MafiaContext::default())>
@@ -158,7 +247,7 @@ fn SetupRolesView<'a>(role: &'a RoleInfo) -> impl IntoView {
         <div class="flex-1 flex flex-col gap-4 w-full">
             <SetupRolesHeader role=role />
             <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
-                <SelectUserForRole role=role />
+                <SelectUserForRole role_info=role />
             </div>
             <TurnButtons role_info=role />
         </div>
@@ -177,13 +266,14 @@ fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
 }
 
 #[component]
-fn SelectUserForRole<'a>(role: &'a RoleInfo) -> impl IntoView {
+fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
     let set_mafia_context =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
     let users = move || mafia_context.get().users;
-    let role = role.get_role();
+    let role = role_info.get_role();
+    let role_info = role_info.clone();
 
     view! {
         <div class="grid grid-cols-3 gap-1">
@@ -197,17 +287,33 @@ fn SelectUserForRole<'a>(role: &'a RoleInfo) -> impl IntoView {
                         <UserSelectRole
                             user=user_clone
                             disabled=false
-                            is_selected=move |u| u.role == role
+                            is_selected=move |u| {
+                                match role_info{
+                                    RoleInfo::Night(_) => u.role == role,
+                                    _ => u.additional_role.contains(&role)
+                                }
+                            }
                             on:click=move |_| {
                                 set_mafia_context.update(|ctx| {
                                     if let Some(user) = ctx.users.iter_mut().find(|u| **u == user) {
-                                        match user.role{
-                                            Role::None => {
-                                                user.role = role;
+                                        match role_info{
+                                            RoleInfo::Additional(_) => {
+                                                if user.additional_role.contains(&role){
+                                                    user.additional_role.remove(&role);
+                                                }else{
+                                                    user.additional_role.insert(role);
+                                                }
                                             }
                                             _ => {
-                                                if user.role == role {
-                                                    user.role = Role::None;
+                                                match user.role{
+                                                    Role::None => {
+                                                        user.role = role;
+                                                    }
+                                                    _ => {
+                                                        if user.role == role {
+                                                            user.role = Role::None;
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -258,7 +364,7 @@ fn UserSelectRole(
                 "".into_view()
             }}
             <UserRoleName role=user.role />
-            {user.name}
+            <div class="flex items-baseline justify-center flex-wrap">{user.name} <UserAdditionalRoles roles=user.additional_role /></div>
             <UserHistory hystory=history current=choosed />
         </button>
     }
@@ -273,7 +379,7 @@ fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView 
                     let role = *role;
 
                     view!{
-                        <UserRoleIcon role=role is_hystory=true />
+                        <UserRoleIcon role=role is_history=UserRoleIconType::History />
                     }
                 }).collect::<Vec<_>>().into_view()
             }
@@ -282,7 +388,7 @@ fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView 
                     let role = *role;
 
                     view!{
-                        <UserRoleIcon role=role is_hystory=false />
+                        <UserRoleIcon role=role is_history=UserRoleIconType::Current />
                     }
                 }).collect::<Vec<_>>().into_view()
             }
@@ -290,15 +396,25 @@ fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView 
     }
 }
 
+enum UserRoleIconType {
+    History,
+    Current,
+    Additional,
+}
+
 #[component]
-fn UserRoleIcon(role: Role, is_hystory: bool) -> impl IntoView {
-    MAFIA_ROLES
+fn UserRoleIcon(role: Role, is_history: UserRoleIconType) -> impl IntoView {
+    WEREWOLF_ROLES
         .iter()
         .find(|r| r.get_role() == role)
         .map(|role_info| {
             view! {
-                <div 
-                    class=move || if is_hystory {"text-xs opacity-70 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
+                <div
+                    class=move || match is_history {
+                        UserRoleIconType::History => "text-xs opacity-70 w-4 h-4",
+                        UserRoleIconType::Current => "text-xs rounded-md bg-white w-4 h-4",
+                        UserRoleIconType::Additional => "text-xs w-4 h-4",
+                    }
                 >
                     {role_info.get_role_icon()}
                 </div>
@@ -308,36 +424,57 @@ fn UserRoleIcon(role: Role, is_hystory: bool) -> impl IntoView {
 
 #[component]
 fn UserRoleName(role: Role) -> impl IntoView {
-    MAFIA_ROLES
+    WEREWOLF_ROLES
         .iter()
         .find(|r| r.get_role() == role)
-        .map_or_else(move || {
-            view! {
-                <div 
-                    class="text-xs opacity-20"
-                >
-                    "Не выбрано"
-                </div>
-            }
-        }, move |role_info| {
-            view! {
-                <div
-                    class=move || {
-                        let mut class = "text-xs opacity-50 ".to_string();
-                        class.push_str(role_info.get_role_name_color());
-                        class
+        .map_or_else(
+            move || {
+                view! {
+                    <div
+                        class="text-xs opacity-20"
+                    >
+                        "Не выбрано"
+                    </div>
+                }
+            },
+            move |role_info| {
+                view! {
+                    <div
+                        class=move || {
+                            let mut class = "text-xs opacity-50 ".to_string();
+                            class.push_str(role_info.get_role_name_color());
+                            class
+                        }
+                    >
+                        {role_info.get_role_name()}
+                    </div>
+                }
+            },
+        )
+        .into_view()
+}
+
+#[component]
+fn UserAdditionalRoles(roles: HashSet<Role>) -> impl IntoView {
+    view! {
+        <div class="flex gap-1">
+            {
+                roles.iter().map(|role| {
+                    view!{
+                        <UserRoleIcon role=*role is_history=UserRoleIconType::Additional />
                     }
-                >
-                    {role_info.get_role_name()}
-                </div>
+                }).collect::<Vec<_>>().into_view()
             }
-        }).into_view()
+        </div>
+    }
 }
 
 #[component]
 fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
-    let set_game_state = use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
-    let set_context_history = use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
+    let set_game_state =
+        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let set_context_history =
+        use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
 
     let role = role_info.get_role();
     let onclick_next_role = move |_| {
@@ -345,9 +482,11 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
             set_context_history.update(|history| history.push(ctx.clone()));
 
             match get_next_prepare_role(role) {
-                Some(role_info) => ctx.game_state = GameState::Mafia(MafiaGameState::SetupRoles(role_info)),
+                Some(role_info) => {
+                    ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(role_info))
+                }
                 None => {
-                    ctx.game_state = GameState::Mafia(MafiaGameState::Day);
+                    ctx.game_state = GameState::Werewolf(WerewolfGameState::Day);
                 }
             }
         });
@@ -437,7 +576,8 @@ fn DayVote() -> impl IntoView {
         if let Some(selected_user) = selected_user {
             set_game_state.update(|state| {
                 if let Some(user) = state.users.iter_mut().find(|u| u.name == selected_user) {
-                    user.choosed_by.insert(Role::Mafia(MafiaRole::Citizen));
+                    user.choosed_by
+                        .insert(Role::Werewolf(WerewolfRole::Villager));
                     user.is_alive = false;
                 }
             })
@@ -446,14 +586,15 @@ fn DayVote() -> impl IntoView {
         set_game_state.update(|state| {
             clear_choosed_by(&mut state.users);
 
-            let mut next_role = Some(MAFIA_ROLES.first().unwrap());
+            let mut next_role = Some(WEREWOLF_ROLES.first().unwrap());
             loop {
                 if let Some(check_role) = next_role {
                     if is_role_alive(check_role.get_role(), &state.users) {
-                        state.game_state = GameState::Mafia(MafiaGameState::Night(check_role));
+                        state.game_state =
+                            GameState::Werewolf(WerewolfGameState::Night(check_role));
                         break;
                     }
-                    next_role = get_next_night_role(check_role.get_role());
+                    next_role = get_next_night_role(check_role);
                 } else {
                     state.game_state = GameState::SetupNames;
                     break;
@@ -478,19 +619,23 @@ fn NextTurnButtons<F>(onclick_next_role: F) -> impl IntoView
 where
     F: Fn() + 'static,
 {
-    let set_context_history = use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
+    let set_context_history =
+        use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
 
     let onclick_prev_role = move |_| {
         set_context_history.update(|history| {
             if let Some(prev_ctx) = history.pop() {
-                let set_game_state = use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+                let set_game_state =
+                    use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
                 set_game_state.set(prev_ctx);
             }
         });
     };
 
     let onclick_next = move |_| {
-        let ctx = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found").get();
+        let ctx = use_context::<ReadSignal<MafiaContext>>()
+            .expect("MafiaContext not found")
+            .get();
 
         set_context_history.update(|history| history.push(ctx.clone()));
 
@@ -519,15 +664,15 @@ fn is_role_alive(role: Role, users: &[User]) -> bool {
     users.iter().any(|u| u.role == role && u.is_alive)
 }
 
-fn get_next_night_alive_role(role: Role, users: &[User]) -> Option<&'static RoleInfo> {
-    let mut next_role = role;
+fn get_next_night_alive_role(role_info: &RoleInfo, users: &[User]) -> Option<&'static RoleInfo> {
+    let mut next_role = role_info;
     loop {
         let check_role = get_next_night_role(next_role);
         if let Some(check_role) = check_role {
-            if is_role_alive(check_role.get_role(), users) {
+            if is_role_alive(check_role.get_check_role(), users) {
                 return Some(check_role);
             }
-            next_role = check_role.get_role();
+            next_role = check_role;
         } else {
             return None;
         }
@@ -546,54 +691,22 @@ fn calculate_night_kills(users: &mut [User]) {
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
     let killed_by_mafia = alive_users.iter_mut().find(|u| {
-        u.choosed_by.contains(&Role::Mafia(MafiaRole::Mafia))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Doctor))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute))
+        u.choosed_by
+            .contains(&Role::Werewolf(WerewolfRole::Werewolf))
+            && !u
+                .choosed_by
+                .contains(&Role::Werewolf(WerewolfRole::Bodyguard))
     });
-
-    if let Some(killed_by_mafia) = killed_by_mafia {
-        killed_by_mafia.is_alive = false;
-        if killed_by_mafia.role == Role::Mafia(MafiaRole::Prostitute) {
-            let saved_by_prostitute = alive_users
-                .iter_mut()
-                .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
-
-            if let Some(saved_by_prostitute) = saved_by_prostitute {
-                if saved_by_prostitute.role != Role::Mafia(MafiaRole::Mafia) {
-                    saved_by_prostitute.is_alive = false;
-                }
-            }
-        }
-    }
-
-    // Maniac killed choosed user
-    let killed_by_maniac = alive_users.iter_mut().find(|u| {
-        u.choosed_by.contains(&Role::Mafia(MafiaRole::Maniac))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Doctor))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute))
-    });
-
-    if let Some(killed_by_maniac) = killed_by_maniac {
-        killed_by_maniac.is_alive = false;
-        if killed_by_maniac.role == Role::Mafia(MafiaRole::Prostitute) {
-            let saved_by_prostitute = alive_users
-                .iter_mut()
-                .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
-
-            if let Some(saved_by_prostitute) = saved_by_prostitute {
-                if saved_by_prostitute.role != Role::Mafia(MafiaRole::Maniac) {
-                    saved_by_prostitute.is_alive = false;
-                }
-            }
-        }
-    }
 }
 
 #[component]
-fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
+fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
+    let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
     let set_game_state =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
     let night_description = role_info.get_night_description();
+
+    let users = move || mafia_context.get().users;
 
     let (selected_user, set_selected_user) = create_signal::<Option<String>>(None);
     let role = role_info.get_role();
@@ -609,27 +722,32 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         }
 
         set_game_state.update(|state| {
-            let next_role = get_next_night_alive_role(role, &state.users);
+            let next_role = get_next_night_alive_role(role_info, &state.users);
 
             match next_role {
                 Some(next_role) => {
-                    state.game_state = GameState::Mafia(MafiaGameState::Night(next_role));
+                    state.game_state = GameState::Werewolf(WerewolfGameState::Night(next_role));
                 }
                 None => {
                     calculate_night_kills(&mut state.users);
-                    state.game_state = GameState::Mafia(MafiaGameState::Day);
+                    state.game_state = GameState::Werewolf(WerewolfGameState::Day);
                 }
             }
         });
     };
 
     let role_targeting_rules = role_info.get_targeting_rules();
+    let is_fully_disabled = match role_targeting_rules {
+        NightTargetingRules::OnlyOne => users().iter().any(|u| u.history_by.contains(&role)),
+        _ => false,
+    };
     let is_disabled = move |user: &User| {
-        !user.is_alive || //(!role_info_clone.get_can_choose_twice() && user.hystory_by.contains(&role))
-        match role_targeting_rules {
-            NightTargetingRules::NotTheSame => user.history_by.contains(&role),
-            _ => false,
-        }
+        is_fully_disabled
+            || !user.is_alive
+            || match role_targeting_rules {
+                NightTargetingRules::NotTheSame => user.history_by.contains(&role),
+                _ => false,
+            }
     };
 
     view! {

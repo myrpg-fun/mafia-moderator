@@ -1,12 +1,13 @@
-use leptos::logging::log;
 use leptos::*;
 
 mod mafia;
 mod roles;
 mod user;
+mod werewolf;
 
 use mafia::*;
 use user::*;
+use werewolf::*;
 
 fn main() {
     mount_to_body(|| {
@@ -20,6 +21,7 @@ fn main() {
 pub enum GameState<'a> {
     SetupNames,
     Mafia(MafiaGameState<'a>),
+    Werewolf(WerewolfGameState<'a>),
 }
 
 impl Default for GameState<'_> {
@@ -94,6 +96,10 @@ fn StartScreen() -> impl IntoView {
             <MafiaGameView />
         }
         .into_view(),
+        GameState::Werewolf(_) => view! {
+            <WerewolfGameView />
+        }
+        .into_view(),
     };
 
     view! {
@@ -165,15 +171,21 @@ fn SetupUsers() -> impl IntoView {
                 </button>
             </form>
             <div class="flex gap-1 items-center justify-between">
-                // <button
-                //         on:click=move |_| set_mafia_ctx.update(|ctx| {
-                //             reset_user_roles(&mut ctx.users);
-                //             ctx.game_state = GameState::SetupRoles(Role::Mafia);
-                //         })
-                //         class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
-                // >
-                //     "Начать Werewolf"
-                // </button>
+                <button
+                        on:click=move |_| set_mafia_ctx.update(|ctx| {
+                            reset_user_roles(&mut ctx.users);
+                            set_context_history.update(|history| {
+                                history.clear();
+                                history.push(ctx.clone());
+                            });
+
+                            let first_role = WEREWOLF_ROLES.first().unwrap();
+                            ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(first_role));
+                            })
+                        class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
+                >
+                    "Начать в Werewolf"
+                </button>
                 <button
                     on:click=move |_| set_mafia_ctx.update(|ctx| {
                         reset_user_roles(&mut ctx.users);
@@ -187,7 +199,7 @@ fn SetupUsers() -> impl IntoView {
                     })
                     class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
                 >
-                    "Начать Мафию"
+                    "Начать в Мафию"
                 </button>
             </div>
         </div>

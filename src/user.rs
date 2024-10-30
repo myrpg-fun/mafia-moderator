@@ -9,7 +9,7 @@ pub struct User {
     pub role: Role,
     pub additional_role: HashSet<Role>,
     pub choosed_by: HashSet<Role>,
-    pub hystory_by: HashSet<Role>,
+    pub history_by: HashSet<Role>,
     pub is_alive: bool,
 }
 
@@ -20,7 +20,7 @@ impl User {
             role: Role::None,
             additional_role: HashSet::new(),
             choosed_by: HashSet::new(),
-            hystory_by: HashSet::new(),
+            history_by: HashSet::new(),
             is_alive: true,
         }
     }
@@ -38,6 +38,6 @@ pub fn reset_user_roles(users: &mut Vec<User>) {
         user.is_alive = true;
         user.additional_role.clear();
         user.choosed_by.clear();
-        user.hystory_by.clear();
+        user.history_by.clear();
     }
 }
