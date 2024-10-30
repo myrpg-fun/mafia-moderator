@@ -1,10 +1,10 @@
 use crate::MafiaRole;
-// use crate::WerewolfRole;
+use crate::WerewolfRole;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Role {
     Mafia(MafiaRole),
-    // Werewolf(WerewolfRole),
+    Werewolf(WerewolfRole),
     None,
 }
 

@@ -3,11 +3,11 @@ use leptos::*;
 mod mafia;
 mod roles;
 mod user;
-//mod werewolf;
+mod werewolf;
 
 use mafia::*;
 use user::*;
-//use werewolf::*;
+use werewolf::*;
 
 fn main() {
     mount_to_body(|| {
@@ -21,7 +21,7 @@ fn main() {
 pub enum GameState<'a> {
     SetupNames,
     Mafia(MafiaGameState<'a>),
-    //    Werewolf(WerewolfGameState<'a>),
+    Werewolf(WerewolfGameState<'a>),
 }
 
 impl Default for GameState<'_> {
@@ -96,10 +96,10 @@ fn StartScreen() -> impl IntoView {
             <MafiaGameView />
         }
         .into_view(),
-        // GameState::Werewolf(_) => view! {
-        //     <WerewolfGameView />
-        // }
-        // .into_view(),
+        GameState::Werewolf(_) => view! {
+            <WerewolfGameView />
+        }
+        .into_view(),
     };
 
     view! {
@@ -179,8 +179,8 @@ fn SetupUsers() -> impl IntoView {
                                 history.push(ctx.clone());
                             });
 
-                            // let first_role = WEREWOLF_ROLES.first().unwrap();
-                            // ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(first_role));
+                            let first_role = WEREWOLF_ROLES.first().unwrap();
+                            ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(first_role));
                         })
                         class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
                 >

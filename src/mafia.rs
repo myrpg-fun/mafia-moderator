@@ -252,27 +252,33 @@ fn UserSelectRole(
             }else{
                 "".into_view()
             }}
-            <div class="flex">
-                {move || {
-                    if user.role.is_empty() {
-                        view!{
-                            <UserRoleName role=Role::Mafia(MafiaRole::None) />
-                        }.into_view()
-                    }else{
-                        user.role.iter().map(|role| {
-                            let role = *role;
-
-                            view!{
-                                <UserRoleName role=role />
-                            }
-                        }).collect::<Vec<_>>().into_view()
-                    }
-                }}
-            </div>
-            
+            <UserRoleNames role=user.role />
             {user.name}
             <UserHistory hystory=history current=choosed />
         </button>
+    }
+}
+
+#[component]
+fn UserRoleNames(role: HashSet<Role>) -> impl IntoView{
+    view! {
+        <div class="flex">
+            {move || {
+                if role.is_empty() {
+                    view!{
+                        <UserRoleName role=Role::Mafia(MafiaRole::None) />
+                    }.into_view()
+                }else{
+                    role.iter().map(|role| {
+                        let role = *role;
+
+                        view!{
+                            <UserRoleName role=role />
+                        }
+                    }).collect::<Vec<_>>().into_view()
+                }
+            }}
+        </div>
     }
 }
 
