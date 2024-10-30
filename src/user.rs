@@ -1,4 +1,3 @@
-use leptos::*;
 use std::collections::HashSet;
 
 use crate::roles::*;
@@ -6,7 +5,7 @@ use crate::roles::*;
 #[derive(Clone, Debug)]
 pub struct User {
     pub name: String,
-    pub role: Role,
+    pub role: HashSet<Role>,
     pub additional_role: HashSet<Role>,
     pub choosed_by: HashSet<Role>,
     pub history_by: HashSet<Role>,
@@ -17,7 +16,7 @@ impl User {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            role: Role::None,
+            role: HashSet::new(),
             additional_role: HashSet::new(),
             choosed_by: HashSet::new(),
             history_by: HashSet::new(),
@@ -34,7 +33,7 @@ impl PartialEq for User {
 
 pub fn reset_user_roles(users: &mut Vec<User>) {
     for user in users.iter_mut() {
-        user.role = Role::None;
+        user.role.clear();
         user.is_alive = true;
         user.additional_role.clear();
         user.choosed_by.clear();

@@ -197,19 +197,14 @@ fn SelectUserForRole<'a>(role: &'a RoleInfo) -> impl IntoView {
                         <UserSelectRole
                             user=user_clone
                             disabled=false
-                            is_selected=move |u| u.role == role
+                            is_selected=move |u| u.role.contains(&role)
                             on:click=move |_| {
                                 set_mafia_context.update(|ctx| {
                                     if let Some(user) = ctx.users.iter_mut().find(|u| **u == user) {
-                                        match user.role{
-                                            Role::None => {
-                                                user.role = role;
-                                            }
-                                            _ => {
-                                                if user.role == role {
-                                                    user.role = Role::None;
-                                                }
-                                            }
+                                        if user.role.contains(&role) {
+                                            user.role.remove(&role);
+                                        }else if user.role.is_empty(){
+                                            user.role.insert(role);
                                         }
                                     }
                                 });
@@ -257,7 +252,24 @@ fn UserSelectRole(
             }else{
                 "".into_view()
             }}
-            <UserRoleName role=user.role />
+            <div class="flex">
+                {move || {
+                    if user.role.is_empty() {
+                        view!{
+                            <UserRoleName role=Role::Mafia(MafiaRole::None) />
+                        }.into_view()
+                    }else{
+                        user.role.iter().map(|role| {
+                            let role = *role;
+
+                            view!{
+                                <UserRoleName role=role />
+                            }
+                        }).collect::<Vec<_>>().into_view()
+                    }
+                }}
+            </div>
+            
             {user.name}
             <UserHistory hystory=history current=choosed />
         </button>
@@ -516,7 +528,7 @@ where
 }
 
 fn is_role_alive(role: Role, users: &[User]) -> bool {
-    users.iter().any(|u| u.role == role && u.is_alive)
+    users.iter().any(|u| u.role.contains(&role) && u.is_alive)
 }
 
 fn get_next_night_alive_role(role: Role, users: &[User]) -> Option<&'static RoleInfo> {
@@ -553,13 +565,13 @@ fn calculate_night_kills(users: &mut [User]) {
 
     if let Some(killed_by_mafia) = killed_by_mafia {
         killed_by_mafia.is_alive = false;
-        if killed_by_mafia.role == Role::Mafia(MafiaRole::Prostitute) {
+        if killed_by_mafia.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
             let saved_by_prostitute = alive_users
                 .iter_mut()
                 .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
 
             if let Some(saved_by_prostitute) = saved_by_prostitute {
-                if saved_by_prostitute.role != Role::Mafia(MafiaRole::Mafia) {
+                if saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
                     saved_by_prostitute.is_alive = false;
                 }
             }
@@ -575,13 +587,13 @@ fn calculate_night_kills(users: &mut [User]) {
 
     if let Some(killed_by_maniac) = killed_by_maniac {
         killed_by_maniac.is_alive = false;
-        if killed_by_maniac.role == Role::Mafia(MafiaRole::Prostitute) {
+        if killed_by_maniac.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
             let saved_by_prostitute = alive_users
                 .iter_mut()
                 .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
 
             if let Some(saved_by_prostitute) = saved_by_prostitute {
-                if saved_by_prostitute.role != Role::Mafia(MafiaRole::Maniac) {
+                if saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
                     saved_by_prostitute.is_alive = false;
                 }
             }
