@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use serde::de;
 use std::collections::HashSet;
 
 use crate::roles::*;
@@ -12,10 +13,10 @@ pub enum WerewolfRole {
     None,
     Villager,
     Werewolf,
+    Minion,
     DireWolf,
-    //    LoneWolf,
+    // LoneWolf,
     // WolfCub,
-    // Minion,
     Cursed,
     Bodyguard,
     Priest,
@@ -25,12 +26,12 @@ pub enum WerewolfRole {
     Seer,
     Lycan,
     Mayor,
-    // Hunter,
+    Hunter,
     Huntress,
     //    ParanormalInvestigator,
-    // Prince,
-    // Diseased,
-    // Mason,
+    Prince,
+    Diseased,
+    Mason,
     Lovers,
     // Doppelganger,
     // AlphaWolf,
@@ -42,7 +43,7 @@ pub enum WerewolfRole {
     // Spellcaster,
 }
 
-pub const WEREWOLF_ROLES: [RoleInfo; 12] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Priest),
         check_role: None,
@@ -73,15 +74,24 @@ pub const WEREWOLF_ROLES: [RoleInfo; 12] = [
         night_description: "Кого убьют Werewolf?",
         targeting_rules: NightTargetingRules::Anyone,
     }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Minion),
+        role_name: "Minion",
+        role_icon: "",
+        additional_role: None,
+        role_name_color: "text-red-950",
+        prepare_description: "Выберите игрока Minion",
+    }),
     RoleInfo::Additional(AdditionalRoleInfo {
         role: Role::Werewolf(WerewolfRole::DireWolf),
         role_icon: "💙",
-        prepare_description: "Выберите Dire Wolf и игрока его любовь",
+        prepare_description: "Поставте сердечки игроку Dire Wolf и в кого он влюблен",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Cursed),
         role_name: "Cursed",
         role_icon: "",
+        additional_role: None,
         role_name_color: "text-purple-950",
         prepare_description: "Выберите игрока Cursed",
     }),
@@ -118,7 +128,8 @@ pub const WEREWOLF_ROLES: [RoleInfo; 12] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::ToughGuy),
         role_name: "ToughGuy",
-        role_icon: "💪",
+        role_icon: "💛",
+        additional_role: Some(Role::Werewolf(WerewolfRole::ToughGuy)),
         role_name_color: "text-blue-950",
         prepare_description: "Выберите игрока ToughGuy",
     }),
@@ -126,6 +137,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 12] = [
         role: Role::Werewolf(WerewolfRole::Mayor),
         role_name: "Mayor",
         role_icon: "🎖️",
+        additional_role: Some(Role::Werewolf(WerewolfRole::Mayor)),
         role_name_color: "text-blue-950",
         prepare_description: "Выберите игрока Mayor",
     }),
@@ -133,13 +145,23 @@ pub const WEREWOLF_ROLES: [RoleInfo; 12] = [
         role: Role::Werewolf(WerewolfRole::Lycan),
         role_name: "Lycan",
         role_icon: "🐺",
+        additional_role: None,
         role_name_color: "text-blue-950",
-        prepare_description: "Выберите игроков Lycan",
+        prepare_description: "Выберите игрока Lycan",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Mason),
+        role_name: "Mason",
+        role_icon: "",
+        additional_role: None,
+        role_name_color: "text-purple-950",
+        prepare_description: "Выберите игроков Mason",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Lovers),
         role_name: "Lovers",
         role_icon: "❤️",
+        additional_role: None,
         role_name_color: "text-purple-950",
         prepare_description: "Выберите игроков Lovers",
     }),
@@ -212,15 +234,17 @@ pub fn WerewolfGameView() -> impl IntoView {
     };
 
     view! {
-        <h1 class="text-lg relative w-full text-left">
-            "Werewolf"
-            <button
-                class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
-                on:click=move |_| set_mafia_context.set(MafiaContext::default())>
-                "Главное меню"
-            </button>
-        </h1>
-        {game_state_view}
+        <div class="relative flex flex-col gap-4 w-full h-full">
+            <h1 class="text-lg relative w-full text-left">
+                "Werewolf"
+                <button
+                    class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
+                    on:click=move |_| set_mafia_context.set(MafiaContext::default())>
+                    "Главное меню"
+                </button>
+            </h1>
+            {game_state_view}
+        </div>
     }
 }
 
@@ -245,22 +269,40 @@ fn UserRow(user: User) -> impl IntoView {
 #[component]
 fn SetupRolesView<'a>(role: &'a RoleInfo) -> impl IntoView {
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
-            <SetupRolesHeader role=role />
-            <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
+        <SetupRolesHeader role=role />
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <div class="flex flex-col gap-1 w-full">
                 <SelectUserForRole role_info=role />
             </div>
-            <TurnButtons role_info=role />
         </div>
+        <TurnButtons role_info=role />
     }
 }
 
 #[component]
 fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
+    let len = move || {
+        WEREWOLF_ROLES
+            .iter()
+            .filter(|r| !r.get_prepare_description().is_empty())
+            .count()
+    };
+
+    let role_clone = role.clone();
+    let index = move || {
+        WEREWOLF_ROLES
+            .iter()
+            .filter(|r| !r.get_prepare_description().is_empty())
+            .position(|r| r == &role_clone)
+            .unwrap_or(0)
+            + 1
+    };
+
     view! {
         <div class="flex flex-col gap-2">
-            <h2>
-                {role.get_prepare_description()}
+            <h2 class="text-base">
+            <span class="bg-black/5 mr-2 rounded-md px-1.5 text-xs py-0.5">{index} <span class="text-black/30">" / " {len}</span></span>{role.get_prepare_description()}
             </h2>
         </div>
     }
@@ -291,8 +333,8 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                             highlighted=false
                             is_selected=move |u| {
                                 match role_info{
-                                    RoleInfo::Night(_) => u.role.contains(&role),
-                                    _ => u.additional_role.contains(&role)
+                                    RoleInfo::Additional(_) => u.additional_role.contains(&role),
+                                    _ => u.role.contains(&role),
                                 }
                             }
                             on:click=move |_| {
@@ -306,11 +348,24 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                                                     user.additional_role.insert(role);
                                                 }
                                             }
-                                            _ => {
+                                            RoleInfo::Night(_) => {
                                                 if user.role.contains(&role){
                                                     user.role.remove(&role);
                                                 }else{
                                                     user.role.insert(role);
+                                                }
+                                            }
+                                            RoleInfo::Passive(passive_role_info) => {
+                                                if user.role.contains(&role){
+                                                    user.role.remove(&role);
+                                                    if let Some(additional_role) = passive_role_info.additional_role {
+                                                        user.additional_role.remove(&additional_role);
+                                                    }
+                                                }else{
+                                                    user.role.insert(role);
+                                                    if let Some(additional_role) = passive_role_info.additional_role {
+                                                        user.additional_role.insert(additional_role);
+                                                    }
                                                 }
                                             }
                                         }
@@ -359,7 +414,7 @@ fn UserSelectRole(
                 main_class
             }
         >
-            {move || if !&user.is_alive && !&user.choosed_by.is_empty() {
+            {move || if user.was_killed {
                 view! {
                     <div class="absolute text-[0.5rem] right-2 top-[0.15rem]">"❌"</div>
                 }.into_view()
@@ -612,6 +667,8 @@ fn DayVote() -> impl IntoView {
     let onclick_next_role = move || {
         let selected_users = selected_users.get();
         set_game_state.update(|state| {
+            clear_was_killed(&mut state.users);
+
             fn kill_user(user: &mut User) {
                 if user
                     .additional_role
@@ -623,6 +680,7 @@ fn DayVote() -> impl IntoView {
                 }
 
                 user.is_alive = false;
+                user.was_killed = true;
             }
 
             state.users.iter_mut().for_each(|u| {
@@ -655,16 +713,18 @@ fn DayVote() -> impl IntoView {
     };
 
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
-            <h2>"Кого мирные жители убъют этим Днем?"</h2>
-            <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
+        <h2>"Кого мирные жители убъют этим Днем?"</h2>
+        <p class="opacity-50 text-sm">"Если убили Hunter или Mad Bomber, выберите несколько целей"</p>
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <div class="flex flex-col gap-1 w-full">
                 <SelectUserForVote selected_users set_selected_users
                     is_disabled=move |user| !user.is_alive
                     is_highlighted=move |_| false
                 />
             </div>
-            <NextTurnButtons onclick_next_role />
         </div>
+        <NextTurnButtons onclick_next_role />
     }
 }
 
@@ -740,7 +800,14 @@ fn clear_choosed_by(users: &mut [User]) {
     }
 }
 
+fn clear_was_killed(users: &mut [User]) {
+    for user in users.iter_mut() {
+        user.was_killed = false;
+    }
+}
+
 fn calculate_night_kills(users: &mut [User]) {
+    clear_was_killed(users);
     // Mafia killed choosed user if he is not protected by doctor or prostitute
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
@@ -761,6 +828,7 @@ fn calculate_night_kills(users: &mut [User]) {
         }
 
         user.is_alive = false;
+        user.was_killed = true;
     }
 
     for user in alive_users.iter_mut() {
@@ -776,9 +844,6 @@ fn calculate_night_kills(users: &mut [User]) {
             } else {
                 user.additional_role
                     .insert(Role::Werewolf(WerewolfRole::Priest));
-                user.choosed_by
-                    .remove(&Role::Werewolf(WerewolfRole::Priest));
-                user.history_by.insert(Role::Werewolf(WerewolfRole::Priest));
             }
         }
 
@@ -814,17 +879,6 @@ fn calculate_night_kills(users: &mut [User]) {
 
 fn initialize_user_roles(users: &mut [User]) {
     // init additional roles
-    for user in users.iter_mut() {
-        if user.role.contains(&Role::Werewolf(WerewolfRole::ToughGuy)) {
-            user.additional_role
-                .insert(Role::Werewolf(WerewolfRole::ToughGuy));
-        }
-
-        if user.role.contains(&Role::Werewolf(WerewolfRole::Mayor)) {
-            user.additional_role
-                .insert(Role::Werewolf(WerewolfRole::Mayor));
-        }
-    }
 }
 
 fn calculate_after_kills(users: &mut [User]) {
@@ -863,6 +917,7 @@ fn calculate_after_kills(users: &mut [User]) {
     for index in kill_indices {
         if let Some(u) = users.get_mut(index) {
             u.is_alive = false;
+            u.was_killed = true;
             u.choosed_by.insert(Role::Werewolf(WerewolfRole::Villager));
         }
     }
@@ -931,14 +986,15 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     };
 
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
-            <h2>
-                {night_description}
-            </h2>
-            <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
-                <SelectUserForVote selected_users set_selected_users is_disabled is_highlighted />
+        <h2>
+            {night_description}
+        </h2>
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <div class="flex flex-col gap-1 w-full">
+            <SelectUserForVote selected_users set_selected_users is_disabled is_highlighted />
             </div>
-            <NextTurnButtons onclick_next_role />
         </div>
+        <NextTurnButtons onclick_next_role />
     }
 }

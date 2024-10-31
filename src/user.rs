@@ -10,6 +10,7 @@ pub struct User {
     pub choosed_by: HashSet<Role>,
     pub history_by: HashSet<Role>,
     pub is_alive: bool,
+    pub was_killed: bool,
 }
 
 impl User {
@@ -21,6 +22,7 @@ impl User {
             choosed_by: HashSet::new(),
             history_by: HashSet::new(),
             is_alive: true,
+            was_killed: false,
         }
     }
 }
@@ -35,6 +37,7 @@ pub fn reset_user_roles(users: &mut Vec<User>) {
     for user in users.iter_mut() {
         user.role.clear();
         user.is_alive = true;
+        user.was_killed = false;
         user.additional_role.clear();
         user.choosed_by.clear();
         user.history_by.clear();

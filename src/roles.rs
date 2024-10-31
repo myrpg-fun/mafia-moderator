@@ -128,6 +128,7 @@ pub struct PassiveRoleInfo {
     pub role_name: &'static str,
     pub role_icon: &'static str,
     pub role_name_color: &'static str,
+    pub additional_role: Option<Role>,
     pub prepare_description: &'static str,
 }
 

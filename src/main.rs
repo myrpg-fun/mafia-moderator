@@ -103,7 +103,7 @@ fn StartScreen() -> impl IntoView {
     };
 
     view! {
-        <div class="flex flex-col justify-start items-center w-full h-full gap-4 p-4">
+        <div class="relative w-full h-full p-4 overflow-hidden">
             {game_state_view}
         </div>
     }
@@ -121,9 +121,9 @@ fn SetupUsers() -> impl IntoView {
     let users = move || mafia_ctx.get().users;
 
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
+        <div class="relative flex flex-col gap-4 w-full h-full">
             <h2>"Введите имена игроков"</h2>
-            <div class="flex-1 flex flex-col gap-1 overflow-auto">
+            <div class="flex-1 flex flex-col gap-1 overflow-auto -mx-4 px-4">
                 <For
                     each=users
                     key=|user| user.name.clone()

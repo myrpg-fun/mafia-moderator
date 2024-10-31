@@ -122,15 +122,17 @@ pub fn MafiaGameView() -> impl IntoView {
     };
 
     view! {
-        <h1 class="text-lg relative w-full text-left">
-            "Мафия"
-            <button
-                class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
-                on:click=move |_| set_mafia_context.set(MafiaContext::default())>
-                "Главное меню"
-            </button>
-        </h1>
-        {game_state_view}
+        <div class="relative flex flex-col gap-4 w-full h-full">
+            <h1 class="text-lg relative w-full text-left">
+                "Мафия"
+                <button
+                    class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
+                    on:click=move |_| set_mafia_context.set(MafiaContext::default())>
+                    "Главное меню"
+                </button>
+            </h1>
+            {game_state_view}
+        </div>
     }
 }
 
@@ -155,13 +157,14 @@ fn UserRow(user: User) -> impl IntoView {
 #[component]
 fn SetupRolesView<'a>(role: &'a RoleInfo) -> impl IntoView {
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
-            <SetupRolesHeader role=role />
-            <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
+        <SetupRolesHeader role=role />
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <div class="flex flex-col gap-1 w-full">
                 <SelectUserForRole role=role />
             </div>
-            <TurnButtons role_info=role />
         </div>
+        <TurnButtons role_info=role />
     }
 }
 
@@ -245,7 +248,7 @@ fn UserSelectRole(
                 main_class
             }
         >
-            {move || if !&user.is_alive && !&user.choosed_by.is_empty() {
+            {move || if user.was_killed {
                 view! {
                     <div class="absolute text-[0.5rem] right-2 top-[0.15rem]">"❌"</div>
                 }.into_view()
@@ -454,9 +457,12 @@ fn DayVote() -> impl IntoView {
         let selected_user = selected_user.get();
         if let Some(selected_user) = selected_user {
             set_game_state.update(|state| {
+                clear_was_killed(&mut state.users);
+            
                 if let Some(user) = state.users.iter_mut().find(|u| u.name == selected_user) {
                     user.choosed_by.insert(Role::Mafia(MafiaRole::Citizen));
                     user.is_alive = false;
+                    user.was_killed = true;
                 }
             })
         }
@@ -481,13 +487,14 @@ fn DayVote() -> impl IntoView {
     };
 
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
-            <h2>"Кого мирные жители убъют этим Днем?"</h2>
-            <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
+        <h2>"Кого мирные жители убъют этим Днем?"</h2>
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <div class="flex flex-col gap-1 w-full">
                 <SelectUserForVote selected_user set_selected_user is_disabled=move |user: &User| !user.is_alive />
             </div>
-            <NextTurnButtons onclick_next_role />
         </div>
+        <NextTurnButtons onclick_next_role />
     }
 }
 
@@ -559,7 +566,15 @@ fn clear_choosed_by(users: &mut [User]) {
     }
 }
 
+fn clear_was_killed(users: &mut [User]) {
+    for user in users.iter_mut() {
+        user.was_killed = false;
+    }
+}
+
 fn calculate_night_kills(users: &mut [User]) {
+    clear_was_killed(users);
+            
     // Mafia killed choosed user if he is not protected by doctor or prostitute
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
@@ -571,6 +586,7 @@ fn calculate_night_kills(users: &mut [User]) {
 
     if let Some(killed_by_mafia) = killed_by_mafia {
         killed_by_mafia.is_alive = false;
+        killed_by_mafia.was_killed = true;
         if killed_by_mafia.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
             let saved_by_prostitute = alive_users
                 .iter_mut()
@@ -579,6 +595,7 @@ fn calculate_night_kills(users: &mut [User]) {
             if let Some(saved_by_prostitute) = saved_by_prostitute {
                 if saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
                     saved_by_prostitute.is_alive = false;
+                    saved_by_prostitute.was_killed = true;
                 }
             }
         }
@@ -593,6 +610,7 @@ fn calculate_night_kills(users: &mut [User]) {
 
     if let Some(killed_by_maniac) = killed_by_maniac {
         killed_by_maniac.is_alive = false;
+        killed_by_maniac.was_killed = true;
         if killed_by_maniac.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
             let saved_by_prostitute = alive_users
                 .iter_mut()
@@ -601,6 +619,7 @@ fn calculate_night_kills(users: &mut [User]) {
             if let Some(saved_by_prostitute) = saved_by_prostitute {
                 if saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
                     saved_by_prostitute.is_alive = false;
+                    saved_by_prostitute.was_killed = true;
                 }
             }
         }
@@ -651,14 +670,15 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     };
 
     view! {
-        <div class="flex-1 flex flex-col gap-4 w-full">
-            <h2>
-                {night_description}
-            </h2>
-            <div class="flex-1 flex flex-col justify-end gap-1 w-full overflow-auto">
+        <h2>
+            {night_description}
+        </h2>
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <div class="flex flex-col gap-1 w-full">
                 <SelectUserForVote selected_user set_selected_user is_disabled />
             </div>
-            <NextTurnButtons onclick_next_role />
         </div>
+        <NextTurnButtons onclick_next_role />
     }
 }
