@@ -20,14 +20,15 @@ pub enum WerewolfRole {
     Cursed,
     Bodyguard,
     Priest,
-    Witch,
+    WitchHeal,
     WitchPoison,
-    ToughGuy,
     Seer,
+    Huntress,
+    Spellcaster,
+    ToughGuy,
     Lycan,
     Mayor,
     Hunter,
-    Huntress,
     //    ParanormalInvestigator,
     Prince,
     Diseased,
@@ -37,23 +38,12 @@ pub enum WerewolfRole {
     // AlphaWolf,
     // MadBomber,
     //*** TODO:
-    // Revealer,
+    Revealer,
     // ApprenticeSeer,
     // AuraSeer,
-    // Spellcaster,
 }
 
-pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
-    RoleInfo::Night(NightRoleInfo {
-        role: Role::Werewolf(WerewolfRole::Priest),
-        check_role: None,
-        role_icon: "🙏",
-        role_name: "Priest",
-        role_name_color: "text-green-950",
-        prepare_description: "Выберите игрока Priest",
-        night_description: "Кого освятит Priest?",
-        targeting_rules: NightTargetingRules::OnlyOne,
-    }),
+pub const WEREWOLF_ROLES: [RoleInfo; 19] = [
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Bodyguard),
         check_role: None,
@@ -63,6 +53,16 @@ pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
         prepare_description: "Выберите игрока Bodyguard",
         night_description: "Кого защитит Bodyguard?",
         targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Priest),
+        check_role: None,
+        role_icon: "🙏",
+        role_name: "Priest",
+        role_name_color: "text-green-950",
+        prepare_description: "Выберите игрока Priest",
+        night_description: "Кого освятит Priest?",
+        targeting_rules: NightTargetingRules::OnlyOne,
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Werewolf),
@@ -96,7 +96,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
         prepare_description: "Выберите игрока Cursed",
     }),
     RoleInfo::Night(NightRoleInfo {
-        role: Role::Werewolf(WerewolfRole::Witch),
+        role: Role::Werewolf(WerewolfRole::WitchHeal),
         check_role: None,
         role_icon: "🌿",
         role_name: "Witch",
@@ -107,7 +107,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::WitchPoison),
-        check_role: Some(Role::Werewolf(WerewolfRole::Witch)),
+        check_role: Some(Role::Werewolf(WerewolfRole::WitchHeal)),
         role_icon: "☠️",
         role_name: "Witch",
         role_name_color: "text-green-950",
@@ -124,6 +124,52 @@ pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
         prepare_description: "Выберите игрока Seer",
         night_description: "Кого проверит Seer?",
         targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Spellcaster),
+        check_role: None,
+        role_name: "Spellcaster",
+        role_name_color: "text-blue-950",
+        role_icon: "🤐",
+        prepare_description: "Выберите игрока Spellcaster",
+        night_description: "Кого заглушил Spellcaster?",
+        targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Huntress),
+        check_role: None,
+        role_name: "Huntress",
+        role_name_color: "text-blue-950",
+        role_icon: "🏹",
+        prepare_description: "Выберите игрока Huntress",
+        night_description: "Кого убъет Huntress?",
+        targeting_rules: NightTargetingRules::OnlyOne,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Revealer),
+        check_role: None,
+        role_name: "Revealer",
+        role_name_color: "text-blue-950",
+        role_icon: "🔦",
+        prepare_description: "Выберите игрока Revealer",
+        night_description: "Кого убъет Revealer?",
+        targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Mason),
+        role_name: "Mason",
+        role_icon: "",
+        additional_role: None,
+        role_name_color: "text-purple-950",
+        prepare_description: "Выберите игроков Mason",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Lovers),
+        role_name: "Lovers",
+        role_icon: "❤️",
+        additional_role: None,
+        role_name_color: "text-purple-950",
+        prepare_description: "Выберите игроков Lovers",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::ToughGuy),
@@ -144,26 +190,26 @@ pub const WEREWOLF_ROLES: [RoleInfo; 14] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Lycan),
         role_name: "Lycan",
-        role_icon: "🐺",
+        role_icon: "",
         additional_role: None,
         role_name_color: "text-blue-950",
         prepare_description: "Выберите игрока Lycan",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
-        role: Role::Werewolf(WerewolfRole::Mason),
-        role_name: "Mason",
+        role: Role::Werewolf(WerewolfRole::Prince),
+        role_name: "Prince",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-purple-950",
-        prepare_description: "Выберите игроков Mason",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игрока Prince",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
-        role: Role::Werewolf(WerewolfRole::Lovers),
-        role_name: "Lovers",
-        role_icon: "❤️",
+        role: Role::Werewolf(WerewolfRole::Diseased),
+        role_name: "Diseased",
+        role_icon: "",
         additional_role: None,
-        role_name_color: "text-purple-950",
-        prepare_description: "Выберите игроков Lovers",
+        role_name_color: "text-blue-950",
+        prepare_description: "Выберите игрока Diseased",
     }),
 ];
 
@@ -798,6 +844,12 @@ fn clear_choosed_by(users: &mut [User]) {
         user.history_by.extend(user.choosed_by.iter());
         user.choosed_by.clear();
     }
+
+    for user in users.iter_mut() {
+        // clear spellcaster silence
+        user.additional_role
+            .remove(&Role::Werewolf(WerewolfRole::Spellcaster));
+    }
 }
 
 fn clear_was_killed(users: &mut [User]) {
@@ -811,12 +863,13 @@ fn calculate_night_kills(users: &mut [User]) {
     // Mafia killed choosed user if he is not protected by doctor or prostitute
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
-    fn is_user_protected(user: &User) -> bool {
-        user.choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Bodyguard))
-            || user
-                .choosed_by
-                .contains(&Role::Werewolf(WerewolfRole::Witch))
+    fn is_user_protected(user: &User, check_protection: &[Role]) -> bool {
+        for role in check_protection {
+            if user.choosed_by.contains(role) {
+                return true;
+            }
+        }
+        return false;
     }
 
     fn kill_user(user: &mut User, check_protection: &[Role]) {
@@ -831,16 +884,18 @@ fn calculate_night_kills(users: &mut [User]) {
         user.was_killed = true;
     }
 
+    let mut kill_roles = HashSet::<Role>::new();
+
     for user in alive_users.iter_mut() {
         // Priest check
         if user
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::Priest))
         {
-            if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
-                && !is_user_protected(user)
-            {
-                kill_user(user, &[Role::Werewolf(WerewolfRole::ToughGuy)]);
+            if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf)) {
+                if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+                    kill_user(user, &[Role::Werewolf(WerewolfRole::ToughGuy)]);
+                }
             } else {
                 user.additional_role
                     .insert(Role::Werewolf(WerewolfRole::Priest));
@@ -852,7 +907,13 @@ fn calculate_night_kills(users: &mut [User]) {
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::Werewolf))
         {
-            if !is_user_protected(user) {
+            if !is_user_protected(
+                user,
+                &[
+                    Role::Werewolf(WerewolfRole::Bodyguard),
+                    Role::Werewolf(WerewolfRole::WitchHeal),
+                ],
+            ) {
                 if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed)) {
                     user.role.insert(Role::Werewolf(WerewolfRole::Werewolf));
                 } else {
@@ -872,7 +933,69 @@ fn calculate_night_kills(users: &mut [User]) {
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::WitchPoison))
         {
-            kill_user(user, &[]);
+            if !is_user_protected(user, &[]) {
+                kill_user(
+                    user,
+                    &[
+                        Role::Werewolf(WerewolfRole::ToughGuy),
+                        Role::Werewolf(WerewolfRole::Priest),
+                    ],
+                );
+            }
+        }
+
+        // Huntress check
+        if user
+            .choosed_by
+            .contains(&Role::Werewolf(WerewolfRole::Huntress))
+        {
+            if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+                kill_user(
+                    user,
+                    &[
+                        Role::Werewolf(WerewolfRole::ToughGuy),
+                        Role::Werewolf(WerewolfRole::Priest),
+                    ],
+                );
+            }
+        }
+
+        // Revealer check
+        if user
+            .choosed_by
+            .contains(&Role::Werewolf(WerewolfRole::Revealer))
+        {
+            if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf)) {
+                if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+                    kill_user(
+                        user,
+                        &[
+                            Role::Werewolf(WerewolfRole::ToughGuy),
+                            Role::Werewolf(WerewolfRole::Priest),
+                        ],
+                    );
+                }
+            } else {
+                kill_roles.insert(Role::Werewolf(WerewolfRole::Revealer));
+            }
+        }
+
+        // Spellcaster check
+        if user
+            .choosed_by
+            .contains(&Role::Werewolf(WerewolfRole::Spellcaster))
+        {
+            user.additional_role
+                .insert(Role::Werewolf(WerewolfRole::Spellcaster));
+        }
+    }
+
+    // kill rest roles
+    for kill_role in kill_roles {
+        for user in alive_users.iter_mut() {
+            if user.role.contains(&kill_role) {
+                kill_user(user, &[]);
+            }
         }
     }
 }
