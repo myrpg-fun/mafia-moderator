@@ -1,2 +1,2 @@
 # 
-trunk build --release -d docs --public-url /docs/
+trunk build --release -d docs --public-url /mafia-moderator/
