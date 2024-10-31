@@ -48,7 +48,7 @@ impl RoleInfo {
         match self {
             RoleInfo::Night(night) => night.role_icon,
             RoleInfo::Additional(additional) => additional.role_icon,
-            _ => "",
+            RoleInfo::Passive(passive) => passive.role_icon,
         }
     }
 
@@ -126,6 +126,7 @@ impl PartialEq<Role> for NightRoleInfo {
 pub struct PassiveRoleInfo {
     pub role: Role,
     pub role_name: &'static str,
+    pub role_icon: &'static str,
     pub role_name_color: &'static str,
     pub prepare_description: &'static str,
 }
