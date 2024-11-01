@@ -319,7 +319,7 @@ fn UserRoleIcon(role: Role, is_hystory: bool) -> impl IntoView {
         .map(|role_info| {
             view! {
                 <div 
-                    class=move || if is_hystory {"text-xs opacity-70 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
+                    class=move || if is_hystory {"text-xs opacity-60 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
                 >
                     {role_info.get_role_icon()}
                 </div>
@@ -686,7 +686,7 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // create user list for test
     fn create_user_vec_for_test() -> Vec<User>{
         vec![

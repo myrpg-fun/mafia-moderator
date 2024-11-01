@@ -1,2 +1,2 @@
 #
-TRUNK_TOOLS_TAILWINDCSS=3.4.14 trunk serve --open --port 8080
+TRUNK_TOOLS_TAILWINDCSS=3.4.14 trunk serve -d dist --open --port 8080
