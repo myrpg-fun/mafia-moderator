@@ -682,3 +682,153 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         <NextTurnButtons onclick_next_role />
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    // create user list for test
+    fn create_user_vec_for_test() -> Vec<User>{
+        vec![
+            User {
+                name: "User1".to_string(),
+                role: HashSet::new(),
+                additional_role: HashSet::new(),
+                choosed_by: HashSet::new(),
+                history_by: HashSet::new(),
+                is_alive: true,
+                was_killed: false,
+            },
+            User {
+                name: "User2".to_string(),
+                role: HashSet::new(),
+                additional_role: HashSet::new(),
+                choosed_by: HashSet::new(),
+                history_by: HashSet::new(),
+                is_alive: true,
+                was_killed: false,
+            },
+            User {
+                name: "User3".to_string(),
+                role: HashSet::new(),
+                additional_role: HashSet::new(),
+                choosed_by: HashSet::new(),
+                history_by: HashSet::new(),
+                is_alive: true,
+                was_killed: false,
+            },
+        ]
+    }
+
+    // write a test that checks if the user is killed by the mafia
+    #[test]
+    fn test_calculate_night_kills() {
+        let mut users = create_user_vec_for_test();
+
+        users[0].role.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        users[0].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        calculate_night_kills(&mut users);
+
+        assert_eq!(users[0].is_alive, false);
+        assert_eq!(users[0].was_killed, true);
+        assert_eq!(users[1].is_alive, true);
+        assert_eq!(users[1].was_killed, false);
+        assert_eq!(users[2].is_alive, true);
+        assert_eq!(users[2].was_killed, false);
+    }
+
+    // write a test that checks if the user is killed by the maniac
+    #[test]
+    fn test_calculate_night_kills_maniac() {
+        let mut users = create_user_vec_for_test();
+
+        users[0].role.insert(Role::Mafia(MafiaRole::Maniac));
+        users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        users[0].choosed_by.insert(Role::Mafia(MafiaRole::Maniac));
+        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        calculate_night_kills(&mut users);
+
+        assert_eq!(users[0].is_alive, false);
+        assert_eq!(users[0].was_killed, true);
+        assert_eq!(users[1].is_alive, true);
+        assert_eq!(users[1].was_killed, false);
+        assert_eq!(users[2].is_alive, true);
+        assert_eq!(users[2].was_killed, false);
+    }
+
+    // write a test that checks if the user is saved by the prostitute
+    #[test]
+    fn test_calculate_night_kills_check_prostitute_save() {
+        let mut users = create_user_vec_for_test();
+
+        users[0].role.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        calculate_night_kills(&mut users);
+        
+        assert_eq!(users[0].is_alive, true);
+        assert_eq!(users[0].was_killed, false);
+        assert_eq!(users[1].is_alive, true);
+        assert_eq!(users[1].was_killed, false);
+        assert_eq!(users[2].is_alive, true);
+        assert_eq!(users[2].was_killed, false);
+    }
+
+    // write a test that checks if the mafia is killed prostitute
+    #[test]
+    fn test_calculate_night_kills_with_check_prostitute_killed_by_mafia() {
+        let mut users = create_user_vec_for_test();
+
+        users[0].role.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        calculate_night_kills(&mut users);
+        
+        assert_eq!(users[0].is_alive, true);
+        assert_eq!(users[0].was_killed, false);
+        assert_eq!(users[1].is_alive, false);
+        assert_eq!(users[1].was_killed, true);
+        assert_eq!(users[2].is_alive, false);
+        assert_eq!(users[2].was_killed, true);
+    }
+
+    // write a test that checks if the mafia is killed prostitute with mafia
+    #[test]
+    fn test_calculate_night_kills_with_check_prostitute_saved_mafia() {
+        let mut users = create_user_vec_for_test();
+
+        users[0].role.insert(Role::Mafia(MafiaRole::Mafia));
+        users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
+        users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
+        users[0].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+
+        calculate_night_kills(&mut users);
+        
+        assert_eq!(users[0].is_alive, true);
+        assert_eq!(users[0].was_killed, false);
+        assert_eq!(users[1].is_alive, true);
+        assert_eq!(users[1].was_killed, false);
+        assert_eq!(users[2].is_alive, false);
+        assert_eq!(users[2].was_killed, true);
+    }
+}
