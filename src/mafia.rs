@@ -593,7 +593,7 @@ fn calculate_night_kills(users: &mut [User]) {
                 .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
 
             if let Some(saved_by_prostitute) = saved_by_prostitute {
-                if saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
+                if !saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
                     saved_by_prostitute.is_alive = false;
                     saved_by_prostitute.was_killed = true;
                 }
@@ -617,7 +617,7 @@ fn calculate_night_kills(users: &mut [User]) {
                 .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
 
             if let Some(saved_by_prostitute) = saved_by_prostitute {
-                if saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
+                if !saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
                     saved_by_prostitute.is_alive = false;
                     saved_by_prostitute.was_killed = true;
                 }
