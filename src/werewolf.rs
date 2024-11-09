@@ -456,17 +456,14 @@ fn UserSelectRole(
                 } else {
                     ""
                 });
-                main_class.push_str(if is_selected(&user_clone) {
+                main_class.push_str(if killed {
+                    " opacity-20 bg-white hover:opacity-90"
+                } else if disabled {
+                    " opacity-60 bg-gray-100 hover:opacity-90"
+                } else if is_selected(&user_clone) {
                     " bg-blue-300"
                 } else {
                     " bg-gray-200"
-                });
-                main_class.push_str(if killed {
-                    " opacity-20"
-                } else if disabled {
-                    " opacity-60"
-                } else {
-                    ""
                 });
                 main_class
             }
@@ -743,6 +740,10 @@ fn DayVote() -> impl IntoView {
             clear_was_killed(&mut state.users);
 
             fn kill_user(user: &mut User, round: usize) {
+                if !user.is_alive {
+                    return;
+                }
+
                 if user
                     .additional_role
                     .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
@@ -902,6 +903,10 @@ fn calculate_night_kills(users: &mut [User]) {
     }
 
     fn kill_user(user: &mut User, check_protection: &[Role]) {
+        if !user.is_alive {
+            return;
+        }
+
         for role in check_protection {
             if user.additional_role.contains(role) {
                 user.additional_role.remove(role);
@@ -1068,9 +1073,11 @@ fn calculate_after_kills(users: &mut [User]) {
     // Set is_alive to false for all Lovers
     for index in kill_indices {
         if let Some(u) = users.get_mut(index) {
-            u.is_alive = false;
-            u.was_killed = true;
-            u.choosed_by.insert(Role::Werewolf(WerewolfRole::Villager));
+            if u.is_alive {
+                u.is_alive = false;
+                u.was_killed = true;
+                u.choosed_by.insert(Role::Werewolf(WerewolfRole::Villager));
+            }
         }
     }
 }

@@ -246,23 +246,20 @@ fn UserSelectRole(
         <button
             disabled=disabled
             class=move || {
-                let mut main_class = "relative flex-1 px-3 py-1 text-sm rounded-2xl flex flex-col items-center justify-start".to_string();
+                let mut main_class = "relative flex-1 px-1 py-1 text-sm rounded-2xl flex flex-col items-center justify-start".to_string();
                 main_class.push_str(if highlighted {
                     " ring-1 ring-red-600/50"
                 } else {
                     ""
                 });
-                main_class.push_str(if is_selected(&user_clone) {
+                main_class.push_str(if killed {
+                    " opacity-20 bg-white hover:opacity-90"
+                } else if disabled {
+                    " opacity-60 bg-gray-100 hover:opacity-90"
+                } else if is_selected(&user_clone) {
                     " bg-blue-300"
                 } else {
                     " bg-gray-200"
-                });
-                main_class.push_str(if killed {
-                    " opacity-20"
-                } else if disabled {
-                    " opacity-60"
-                } else {
-                    ""
                 });
                 main_class
             }
