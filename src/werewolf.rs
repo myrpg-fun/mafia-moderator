@@ -43,7 +43,11 @@ pub enum WerewolfRole {
     // AuraSeer,
 }
 
-pub const WEREWOLF_ROLES: [RoleInfo; 19] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
+    RoleInfo::Icon(IconRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Villager),
+        role_icon: "✋",
+    }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Bodyguard),
         check_role: None,
@@ -285,7 +289,9 @@ pub fn WerewolfGameView() -> impl IntoView {
                 "Werewolf"
                 <button
                     class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
-                    on:click=move |_| set_mafia_context.set(MafiaContext::default())>
+                    on:click=move |_| if window().confirm_with_message("Вернуться в главное меню?").expect("REASON") {
+                        set_mafia_context.set(MafiaContext::default());
+                    }>
                     "Главное меню"
                 </button>
             </h1>
@@ -377,6 +383,7 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                             user=user_clone
                             disabled=false
                             highlighted=false
+                            killed=false
                             is_selected=move |u| {
                                 match role_info{
                                     RoleInfo::Additional(_) => u.additional_role.contains(&role),
@@ -414,6 +421,7 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                                                     }
                                                 }
                                             }
+                                            _ => {}
                                         }
                                     }
                                 });
@@ -431,6 +439,7 @@ fn UserSelectRole(
     user: User,
     is_selected: impl Fn(&User) -> bool + 'static,
     disabled: bool,
+    killed: bool,
     highlighted: bool,
 ) -> impl IntoView {
     let history = user.history_by.clone();
@@ -441,7 +450,7 @@ fn UserSelectRole(
         <button
             disabled=disabled
             class=move || {
-                let mut main_class = "relative flex-1 px-3 py-1 text-sm rounded-2xl flex flex-col items-center justify-end".to_string();
+                let mut main_class = "relative flex-1 px-3 py-1 text-sm rounded-2xl flex flex-col items-center justify-start".to_string();
                 main_class.push_str(if highlighted {
                     " ring-1 ring-red-600/50"
                 } else {
@@ -452,8 +461,10 @@ fn UserSelectRole(
                 } else {
                     " bg-gray-200"
                 });
-                main_class.push_str(if disabled {
-                    " opacity-50"
+                main_class.push_str(if killed {
+                    " opacity-20"
+                } else if disabled {
+                    " opacity-60"
                 } else {
                     ""
                 });
@@ -467,8 +478,8 @@ fn UserSelectRole(
             }else{
                 "".into_view()
             }}
-            <UserRoleNames role=user.role />
             <div class="flex items-baseline justify-center flex-wrap">{user.name} <UserAdditionalRoles roles=user.additional_role /></div>
+            <UserRoleNames role=user.role />
             <UserHistory hystory=history current=choosed />
         </button>
     }
@@ -509,18 +520,28 @@ fn Separator() -> impl IntoView {
 }
 
 #[component]
-fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView {
+fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> impl IntoView {
     view! {
-        <div class="flex gap-1 h-4">
+        <div class="flex flex-col gap-0.5 flex-wrap min-h-4">
             {
-                hystory.iter().map(|role| {
-                    let role = *role;
-
+                hystory.iter().map(|(round, roles)| {
                     view!{
-                        <UserRoleIcon role=role is_history=UserRoleIconType::History />
+                        <div class="flex items-center">
+                            <div class="text-xs opacity-60 mr-0.5">{round.into_view()}"."</div>
+                            {
+                                roles.iter().map(|role| {
+                                    let role = *role;
+
+                                    view!{
+                                        <UserRoleIcon role=role is_history=UserRoleIconType::History />
+                                    }.into_view()
+                                }).collect::<Vec<_>>().into_view()
+                            }
+                        </div>
                     }
                 }).collect::<Vec<_>>().into_view()
             }
+            <div class="flex items-center gap-0.5">
             {
                 current.iter().map(|role| {
                     let role = *role;
@@ -528,10 +549,9 @@ fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView 
                     view!{
                         <UserRoleIcon role=role is_history=UserRoleIconType::Current />
                     }
-                })
-                .collect::<Vec<_>>().into_view()
-
+                }).collect::<Vec<_>>().into_view()
             }
+            </div>
         </div>
     }
 }
@@ -627,6 +647,7 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                 }
                 None => {
                     initialize_user_roles(&mut ctx.users);
+                    ctx.round = 0;
                     ctx.game_state = GameState::Werewolf(WerewolfGameState::Day);
                 }
             }
@@ -660,9 +681,10 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
 }
 
 #[component]
-fn SelectUserForVote(
+fn SelectUsersForVote(
     selected_users: ReadSignal<HashSet<String>>,
     set_selected_users: WriteSignal<HashSet<String>>,
+    is_killed: impl Fn(&User) -> bool + 'static,
     is_disabled: impl Fn(&User) -> bool + 'static,
     is_highlighted: impl Fn(&User) -> bool + 'static,
 ) -> impl IntoView {
@@ -679,12 +701,14 @@ fn SelectUserForVote(
                 children=move |user| {
                     let disabled = is_disabled(&user);
                     let highlighted = is_highlighted(&user);
+                    let killed = is_killed(&user);
 
                     view!{
                         <UserSelectRole
                             user=user.clone()
                             disabled=disabled
                             highlighted=highlighted
+                            killed=killed
                             is_selected=is_selected
                             on:click=move |_| {
                                 set_selected_users.update(|selected_users| {
@@ -713,9 +737,12 @@ fn DayVote() -> impl IntoView {
     let onclick_next_role = move || {
         let selected_users = selected_users.get();
         set_game_state.update(|state| {
+            let round = state.round;
+
+            clear_choosed_by(&mut state.users, round);
             clear_was_killed(&mut state.users);
 
-            fn kill_user(user: &mut User) {
+            fn kill_user(user: &mut User, round: usize) {
                 if user
                     .additional_role
                     .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
@@ -725,21 +752,20 @@ fn DayVote() -> impl IntoView {
                     return;
                 }
 
+                user.choosed_by
+                    .insert(Role::Werewolf(WerewolfRole::Villager));
                 user.is_alive = false;
                 user.was_killed = true;
             }
 
             state.users.iter_mut().for_each(|u| {
                 if selected_users.contains(&u.name) {
-                    kill_user(u);
+                    kill_user(u, round);
                 }
             });
 
             calculate_after_kills(&mut state.users);
-        });
-
-        set_game_state.update(|state| {
-            clear_choosed_by(&mut state.users);
+            clear_choosed_by(&mut state.users, round + 1);
 
             let mut next_role = Some(WEREWOLF_ROLES.first().unwrap());
             loop {
@@ -764,7 +790,8 @@ fn DayVote() -> impl IntoView {
         <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
-                <SelectUserForVote selected_users set_selected_users
+                <SelectUsersForVote selected_users set_selected_users
+                    is_killed=move |user: &User| !user.is_alive && !user.was_killed
                     is_disabled=move |user| !user.is_alive
                     is_highlighted=move |_| false
                 />
@@ -839,9 +866,11 @@ fn get_next_night_alive_role(role_info: &RoleInfo, users: &[User]) -> Option<&'s
     }
 }
 
-fn clear_choosed_by(users: &mut [User]) {
+fn clear_choosed_by(users: &mut [User], round: usize) {
     for user in users.iter_mut() {
-        user.history_by.extend(user.choosed_by.iter());
+        if !user.choosed_by.is_empty() {
+            user.history_by.push((round, user.choosed_by.clone()));
+        }
         user.choosed_by.clear();
     }
 
@@ -1046,6 +1075,13 @@ fn calculate_after_kills(users: &mut [User]) {
     }
 }
 
+// check is user history contains role
+fn check_user_history_for_role(user: &User, role: &Role) -> bool {
+    user.history_by
+        .iter()
+        .any(|(_, roles)| roles.contains(role))
+}
+
 #[component]
 fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
@@ -1078,6 +1114,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
                 None => {
                     calculate_night_kills(&mut state.users);
                     calculate_after_kills(&mut state.users);
+                    state.round += 1;
                     state.game_state = GameState::Werewolf(WerewolfGameState::Day);
                 }
             }
@@ -1086,14 +1123,16 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
 
     let role_targeting_rules = role_info.get_targeting_rules();
     let is_fully_disabled = match role_targeting_rules {
-        NightTargetingRules::OnlyOne => users().iter().any(|u| u.history_by.contains(&role)),
+        NightTargetingRules::OnlyOne => users()
+            .iter()
+            .any(|u| check_user_history_for_role(u, &role)),
         _ => false,
     };
     let is_disabled = move |user: &User| {
         is_fully_disabled
             || !user.is_alive
             || match role_targeting_rules {
-                NightTargetingRules::NotTheSame => user.history_by.contains(&role),
+                NightTargetingRules::NotTheSame => check_user_history_for_role(&user, &role),
                 _ => false,
             }
     };
@@ -1115,7 +1154,9 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
         <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
-            <SelectUserForVote selected_users set_selected_users is_disabled is_highlighted />
+            <SelectUsersForVote
+                is_killed=move |user: &User| !user.is_alive && !user.was_killed
+                selected_users set_selected_users is_disabled is_highlighted />
             </div>
         </div>
         <NextTurnButtons onclick_next_role />

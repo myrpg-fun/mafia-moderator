@@ -13,6 +13,7 @@ pub enum RoleInfo {
     Night(NightRoleInfo),
     Passive(PassiveRoleInfo),
     Additional(AdditionalRoleInfo),
+    Icon(IconRoleInfo),
 }
 
 impl PartialEq<Role> for RoleInfo {
@@ -21,6 +22,7 @@ impl PartialEq<Role> for RoleInfo {
             RoleInfo::Night(night) => *other == night.role,
             RoleInfo::Passive(passive) => *other == passive.role,
             RoleInfo::Additional(additional) => *other == additional.role,
+            RoleInfo::Icon(icon) => *other == icon.role,
         }
     }
 }
@@ -32,6 +34,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => night.role,
             RoleInfo::Passive(passive) => passive.role,
             RoleInfo::Additional(additional) => additional.role,
+            RoleInfo::Icon(icon) => icon.role,
         }
     }
 
@@ -40,6 +43,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => night.check_role.unwrap_or(night.role),
             RoleInfo::Passive(passive) => passive.role,
             RoleInfo::Additional(additional) => additional.role,
+            RoleInfo::Icon(icon) => icon.role,
         }
     }
 
@@ -49,6 +53,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => night.role_icon,
             RoleInfo::Additional(additional) => additional.role_icon,
             RoleInfo::Passive(passive) => passive.role_icon,
+            RoleInfo::Icon(icon) => icon.role_icon,
         }
     }
 
@@ -76,6 +81,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => night.prepare_description,
             RoleInfo::Passive(passive) => passive.prepare_description,
             RoleInfo::Additional(additional) => additional.prepare_description,
+            _ => "",
         }
     }
 
@@ -146,6 +152,18 @@ pub struct AdditionalRoleInfo {
 }
 
 impl PartialEq<Role> for AdditionalRoleInfo {
+    fn eq(&self, other: &Role) -> bool {
+        *other == self.role
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IconRoleInfo {
+    pub role: Role,
+    pub role_icon: &'static str,
+}
+
+impl PartialEq<Role> for IconRoleInfo {
     fn eq(&self, other: &Role) -> bool {
         *other == self.role
     }

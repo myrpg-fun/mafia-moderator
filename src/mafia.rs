@@ -17,7 +17,11 @@ pub enum MafiaRole {
     Prostitute,
 }
 
-pub const MAFIA_ROLES: [RoleInfo; 5] = [
+pub const MAFIA_ROLES: [RoleInfo; 6] = [
+    RoleInfo::Icon(IconRoleInfo{
+        role: Role::Mafia(MafiaRole::Citizen),
+        role_icon: "✋",
+    }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Mafia),
         check_role: None,
@@ -39,16 +43,6 @@ pub const MAFIA_ROLES: [RoleInfo; 5] = [
         targeting_rules: NightTargetingRules::NotTheSame,
     }),
     RoleInfo::Night(NightRoleInfo {
-        role: Role::Mafia(MafiaRole::Doctor),
-        check_role: None,
-        role_name: "Доктор",
-        role_name_color: "text-green-950",
-        role_icon: "🚑",
-        prepare_description: "Выберите игрока Доктора",
-        night_description: "Кого спасет Доктор?",
-        targeting_rules: NightTargetingRules::NotTheSame,
-    }),
-    RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Maniac),
         check_role: None,
         role_name: "Маньяк",
@@ -57,6 +51,16 @@ pub const MAFIA_ROLES: [RoleInfo; 5] = [
         prepare_description: "Выберите игрока Маньяка",
         night_description: "Кого убьет Маньяк?",
         targeting_rules: NightTargetingRules::Anyone,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Mafia(MafiaRole::Doctor),
+        check_role: None,
+        role_name: "Доктор",
+        role_name_color: "text-green-950",
+        role_icon: "🚑",
+        prepare_description: "Выберите игрока Доктора",
+        night_description: "Кого спасет Доктор?",
+        targeting_rules: NightTargetingRules::NotTheSame,
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Prostitute),
@@ -127,7 +131,11 @@ pub fn MafiaGameView() -> impl IntoView {
                 "Мафия"
                 <button
                     class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
-                    on:click=move |_| set_mafia_context.set(MafiaContext::default())>
+                    on:click=move |_| {
+                        if window().confirm_with_message("Вернуться в главное меню?").expect("REASON") {
+                            set_mafia_context.set(MafiaContext::default());
+                        }
+                    }>
                     "Главное меню"
                 </button>
             </h1>
@@ -201,6 +209,8 @@ fn SelectUserForRole<'a>(role: &'a RoleInfo) -> impl IntoView {
                             user=user_clone
                             disabled=false
                             is_selected=move |u| u.role.contains(&role)
+                            highlighted=false
+                            killed=false
                             on:click=move |_| {
                                 set_mafia_context.update(|ctx| {
                                     if let Some(user) = ctx.users.iter_mut().find(|u| **u == user) {
@@ -225,23 +235,32 @@ fn UserSelectRole(
     user: User,
     is_selected: impl Fn(&User) -> bool + 'static,
     disabled: bool,
+    killed: bool,
+    highlighted: bool,
 ) -> impl IntoView {
-    let user_clone = user.clone();
     let history = user.history_by.clone();
     let choosed = user.choosed_by.clone();
+    let user_clone = user.clone();
 
     view! {
         <button
             disabled=disabled
             class=move || {
-                let mut main_class = "relative flex-1 px-3 py-1 text-sm rounded-2xl flex flex-col items-center justify-end".to_string();
+                let mut main_class = "relative flex-1 px-3 py-1 text-sm rounded-2xl flex flex-col items-center justify-start".to_string();
+                main_class.push_str(if highlighted {
+                    " ring-1 ring-red-600/50"
+                } else {
+                    ""
+                });
                 main_class.push_str(if is_selected(&user_clone) {
                     " bg-blue-300"
                 } else {
                     " bg-gray-200"
                 });
-                main_class.push_str(if disabled {
-                    " opacity-50"
+                main_class.push_str(if killed {
+                    " opacity-20"
+                } else if disabled {
+                    " opacity-60"
                 } else {
                     ""
                 });
@@ -255,8 +274,8 @@ fn UserSelectRole(
             }else{
                 "".into_view()
             }}
+            <div class="flex items-baseline justify-center flex-wrap">{user.name}</div>
             <UserRoleNames role=user.role />
-            {user.name}
             <UserHistory hystory=history current=choosed />
         </button>
     }
@@ -286,18 +305,28 @@ fn UserRoleNames(role: HashSet<Role>) -> impl IntoView{
 }
 
 #[component]
-fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView {
+fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> impl IntoView {
     view! {
-        <div class="flex gap-1 h-4">
+        <div class="flex flex-col gap-0.5 flex-wrap min-h-4">
             {
-                hystory.iter().map(|role| {
-                    let role = *role;
-
+                hystory.iter().map(|(round, roles)| {
                     view!{
-                        <UserRoleIcon role=role is_hystory=true />
+                        <div class="flex items-center">
+                            <div class="text-xs opacity-60 mr-0.5">{round.into_view()}"."</div>
+                            {
+                                roles.iter().map(|role| {
+                                    let role = *role;
+
+                                    view!{
+                                        <UserRoleIcon role=role is_hystory=true />
+                                    }.into_view()
+                                }).collect::<Vec<_>>().into_view()
+                            }
+                        </div>
                     }
                 }).collect::<Vec<_>>().into_view()
             }
+            <div class="flex items-center gap-0.5">
             {
                 current.iter().map(|role| {
                     let role = *role;
@@ -307,6 +336,7 @@ fn UserHistory(hystory: HashSet<Role>, current: HashSet<Role>) -> impl IntoView 
                     }
                 }).collect::<Vec<_>>().into_view()
             }
+            </div>
         </div>
     }
 }
@@ -368,6 +398,7 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
             match get_next_prepare_role(role) {
                 Some(role_info) => ctx.game_state = GameState::Mafia(MafiaGameState::SetupRoles(role_info)),
                 None => {
+                    ctx.round = 0;
                     ctx.game_state = GameState::Mafia(MafiaGameState::Day);
                 }
             }
@@ -401,14 +432,18 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
 }
 
 #[component]
-fn SelectUserForVote(
-    selected_user: ReadSignal<Option<String>>,
-    set_selected_user: WriteSignal<Option<String>>,
+fn SelectUsersForVote(
+    selected_users: ReadSignal<HashSet<String>>,
+    set_selected_users: WriteSignal<HashSet<String>>,
     is_disabled: impl Fn(&User) -> bool + 'static,
+    is_highlighted: impl Fn(&User) -> bool + 'static,
+    is_killed: impl Fn(&User) -> bool + 'static,
+    is_single_select: bool,
 ) -> impl IntoView {
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
 
     let users = move || mafia_context.get().users;
+    let is_selected = move |user: &User| selected_users.get().contains(&user.name);
 
     view! {
         <div class="grid grid-cols-3 gap-1">
@@ -417,26 +452,27 @@ fn SelectUserForVote(
                 key=|user| user.name.clone()
                 children=move |user| {
                     let disabled = is_disabled(&user);
+                    let highlighted = is_highlighted(&user);
+                    let killed = is_killed(&user);
+
                     view!{
                         <UserSelectRole
                             user=user.clone()
                             disabled=disabled
-                            is_selected= move |u| {
-                                let selected_user = selected_user.get();
-
-                                if let Some(selected_user) = selected_user{
-                                    selected_user == u.name
-                                }else{
-                                    false
-                                }
-                            }
+                            highlighted=highlighted
+                            is_selected=is_selected
+                            killed=killed
                             on:click=move |_| {
-                                let name = Some(user.name.clone());
-                                if selected_user.get() == name {
-                                    set_selected_user.set(None);
-                                }else{
-                                    set_selected_user.set(name);
-                                }
+                                set_selected_users.update(|selected_users| {
+                                    if selected_users.contains(&user.name) {
+                                        selected_users.remove(&user.name);
+                                    } else {
+                                        if is_single_select {
+                                            selected_users.clear();
+                                        }
+                                        selected_users.insert(user.name.clone());
+                                    }
+                                });
                             }
                         />
                     }
@@ -451,24 +487,25 @@ fn DayVote() -> impl IntoView {
     let set_game_state =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
-    let (selected_user, set_selected_user) = create_signal::<Option<String>>(None);
+    let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
 
     let onclick_next_role = move || {
-        let selected_user = selected_user.get();
-        if let Some(selected_user) = selected_user {
-            set_game_state.update(|state| {
-                clear_was_killed(&mut state.users);
-            
-                if let Some(user) = state.users.iter_mut().find(|u| u.name == selected_user) {
-                    user.choosed_by.insert(Role::Mafia(MafiaRole::Citizen));
-                    user.is_alive = false;
-                    user.was_killed = true;
-                }
-            })
-        }
-
+        let selected_users = selected_users.get();
         set_game_state.update(|state| {
-            clear_choosed_by(&mut state.users);
+            let round = state.round;
+
+            clear_was_killed(&mut state.users);
+            clear_choosed_by(&mut state.users, round);
+
+            state.users.iter_mut().for_each(|u| {
+                if selected_users.contains(&u.name) {
+                    let mut citizen_history = HashSet::new();
+                    citizen_history.insert(Role::Mafia(MafiaRole::Citizen));
+                    u.history_by.push((round+1, citizen_history));
+                    u.is_alive = false;
+                    u.was_killed = true;
+                }
+            });
 
             let mut next_role = Some(MAFIA_ROLES.first().unwrap());
             loop {
@@ -491,7 +528,13 @@ fn DayVote() -> impl IntoView {
         <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
-                <SelectUserForVote selected_user set_selected_user is_disabled=move |user: &User| !user.is_alive />
+                <SelectUsersForVote 
+                    selected_users 
+                    set_selected_users 
+                    is_disabled=move |user: &User| !user.is_alive 
+                    is_highlighted=move |_| false 
+                    is_killed=move |user: &User| !user.is_alive && !user.was_killed
+                    is_single_select=false />
             </div>
         </div>
         <NextTurnButtons onclick_next_role />
@@ -559,9 +602,14 @@ fn get_next_night_alive_role(role: Role, users: &[User]) -> Option<&'static Role
     }
 }
 
-fn clear_choosed_by(users: &mut [User]) {
+fn clear_choosed_by(users: &mut [User], round: usize) {
     for user in users.iter_mut() {
-        user.history_by.extend(user.choosed_by.iter());
+        // filter Citizen role
+        let choosed_by = user.choosed_by.clone();//.into_iter().filter(|r| *r != Role::Mafia(MafiaRole::Citizen)).collect::<HashSet<_>>();
+
+        if !choosed_by.is_empty(){
+            user.history_by.push((round, choosed_by));
+        }
         user.choosed_by.clear();
     }
 }
@@ -626,24 +674,31 @@ fn calculate_night_kills(users: &mut [User]) {
     }
 }
 
+// check is user history contains role
+fn check_user_history_for_role(user: &User, role: &Role) -> bool {
+    user.history_by.iter().any(|(_, roles)| {
+        roles.contains(role)
+    })
+}
+
 #[component]
-fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
+fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     let set_game_state =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
     let night_description = role_info.get_night_description();
 
-    let (selected_user, set_selected_user) = create_signal::<Option<String>>(None);
+    let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
     let role = role_info.get_role();
 
     let onclick_next_role = move || {
-        let selected_user = selected_user.get();
-        if let Some(selected_user) = selected_user {
-            set_game_state.update(|state| {
-                if let Some(user) = state.users.iter_mut().find(|u| u.name == selected_user) {
-                    user.choosed_by.insert(role);
+        let selected_user = selected_users.get();
+        set_game_state.update(|state| {
+            state.users.iter_mut().for_each(|u| {
+                if selected_user.contains(&u.name) {
+                    u.choosed_by.insert(role);
                 }
-            })
-        }
+            });
+        });
 
         set_game_state.update(|state| {
             let next_role = get_next_night_alive_role(role, &state.users);
@@ -654,6 +709,7 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                 }
                 None => {
                     calculate_night_kills(&mut state.users);
+                    state.round += 1;
                     state.game_state = GameState::Mafia(MafiaGameState::Day);
                 }
             }
@@ -664,9 +720,13 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let is_disabled = move |user: &User| {
         !user.is_alive || //(!role_info_clone.get_can_choose_twice() && user.hystory_by.contains(&role))
         match role_targeting_rules {
-            NightTargetingRules::NotTheSame => user.history_by.contains(&role),
+            NightTargetingRules::NotTheSame => check_user_history_for_role(&user, &role),
             _ => false,
         }
+    };
+
+    let is_highlighted = move |user: &User| {
+        role_info.get_role() == Role::Mafia(MafiaRole::Detective) && user.role.contains(&&Role::Mafia(MafiaRole::Mafia))
     };
 
     view! {
@@ -676,7 +736,9 @@ fn NightTurn<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
-                <SelectUserForVote selected_user set_selected_user is_disabled />
+                <SelectUsersForVote 
+                is_killed=move |user: &User| !user.is_alive && !user.was_killed
+                selected_users set_selected_users is_disabled is_highlighted is_single_select=true />
             </div>
         </div>
         <NextTurnButtons onclick_next_role />
@@ -695,7 +757,7 @@ mod tests {
                 role: HashSet::new(),
                 additional_role: HashSet::new(),
                 choosed_by: HashSet::new(),
-                history_by: HashSet::new(),
+                history_by: Vec::new(),
                 is_alive: true,
                 was_killed: false,
             },
@@ -704,7 +766,7 @@ mod tests {
                 role: HashSet::new(),
                 additional_role: HashSet::new(),
                 choosed_by: HashSet::new(),
-                history_by: HashSet::new(),
+                history_by: Vec::new(),
                 is_alive: true,
                 was_killed: false,
             },
@@ -713,7 +775,7 @@ mod tests {
                 role: HashSet::new(),
                 additional_role: HashSet::new(),
                 choosed_by: HashSet::new(),
-                history_by: HashSet::new(),
+                history_by: Vec::new(),
                 is_alive: true,
                 was_killed: false,
             },

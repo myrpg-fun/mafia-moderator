@@ -1,4 +1,5 @@
 use leptos::*;
+use leptos_use::*;
 
 mod mafia;
 mod roles;
@@ -6,6 +7,7 @@ mod user;
 mod werewolf;
 
 use mafia::*;
+use roles::Role;
 use user::*;
 use werewolf::*;
 
@@ -33,6 +35,7 @@ impl Default for GameState<'_> {
 #[derive(Clone, Debug)]
 struct MafiaContext<'a> {
     users: Vec<User>,
+    round: usize,
     game_state: GameState<'a>,
 }
 
@@ -57,6 +60,7 @@ impl Default for MafiaContext<'_> {
 
         Self {
             users: starting_users.collect(),
+            round: 0,
             game_state: GameState::SetupNames,
         }
     }
@@ -118,18 +122,23 @@ fn SetupUsers() -> impl IntoView {
 
     let (name, set_name) = create_signal("".to_string());
 
-    let users = move || mafia_ctx.get().users;
+    let users = move || mafia_ctx.get().users.into_iter().enumerate();
 
     view! {
         <div class="relative flex flex-col gap-4 w-full h-full">
-            <h2>"Введите имена игроков"</h2>
+            <h2 class="flex w-full items-baseline justify-start gap-2">
+                "Введите имена игроков"
+            </h2>
             <div class="flex-1 flex flex-col gap-1 overflow-auto -mx-4 px-4">
                 <For
                     each=users
-                    key=|user| user.name.clone()
-                    children=move |user| {
+                    key=|(_, user)| user.name.clone()
+                    children=move |(index, user)| {
                         view!{
-                            <UserRow user=user />
+                                <UserRow
+                                    index=index
+                                    user=user
+                                />
                         }
                     }
                 />
@@ -148,8 +157,6 @@ fn SetupUsers() -> impl IntoView {
                     }
 
                     ctx.users.push(User::new(name.get().clone()));
-                    // sort users by name
-                    ctx.users.sort_by(|a, b| a.name.cmp(&b.name));
                 });
 
                 set_name.set("".to_string());
@@ -179,7 +186,7 @@ fn SetupUsers() -> impl IntoView {
                                 history.push(ctx.clone());
                             });
 
-                            let first_role = WEREWOLF_ROLES.first().unwrap();
+                            let first_role = WEREWOLF_ROLES.iter().filter(|r| r.get_role() == Role::Werewolf(WerewolfRole::Bodyguard)).next().unwrap();
                             ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(first_role));
                         })
                         class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
@@ -194,7 +201,7 @@ fn SetupUsers() -> impl IntoView {
                             history.push(ctx.clone());
                         });
 
-                        let first_role = MAFIA_ROLES.first().unwrap();
+                        let first_role = MAFIA_ROLES.iter().filter(|r| r.get_role() == Role::Mafia(MafiaRole::Mafia)).next().unwrap();
                         ctx.game_state = GameState::Mafia(MafiaGameState::SetupRoles(first_role));
                     })
                     class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
@@ -207,12 +214,42 @@ fn SetupUsers() -> impl IntoView {
 }
 
 #[component]
-fn UserRow(user: User) -> impl IntoView {
+fn UserRow(user: User, index: usize) -> impl IntoView {
     let users = use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
     view! {
-        <div class="flex gap-2">
-            <div class="flex-1 px-3 py-1 text-base bg-gray-200 rounded-full">{user.name.clone()}</div>
+        <div class="flex gap-2 items-baseline">
+            <div class="text-sm w-7 flex items-center justify-center bg-gray-100 rounded-full px-2">{index + 1}</div>
+            <div class="flex-1 flex items-center justify-start px-3 py-1 text-base bg-gray-200 rounded-full">
+                {user.name.clone()}
+                <div class="flex-1"></div>
+                //down
+                <button
+                    class="text-center text-lg w-7 opacity-50"
+                    on:click=move |_| {
+                        users.update(|ctx| {
+                            if index < ctx.users.len() - 1 {
+                                ctx.users.swap(index, index + 1);
+                            }
+                        });
+                    }
+                >
+                    "↓"
+                </button>
+                //up
+                <button
+                    class="text-center text-lg w-7 opacity-50"
+                    on:click=move |_| {
+                        users.update(|ctx| {
+                            if index > 0 {
+                                ctx.users.swap(index, index - 1);
+                            }
+                        });
+                    }
+                >
+                    "↑"
+                </button>
+            </div>
             <button class="text-lg"
                 on:click=move |_| {
                     users.update(|ctx| ctx.users.retain(|u| *u != user));

@@ -8,7 +8,7 @@ pub struct User {
     pub role: HashSet<Role>,
     pub additional_role: HashSet<Role>,
     pub choosed_by: HashSet<Role>,
-    pub history_by: HashSet<Role>,
+    pub history_by: Vec<(usize, HashSet<Role>)>,
     pub is_alive: bool,
     pub was_killed: bool,
 }
@@ -20,7 +20,7 @@ impl User {
             role: HashSet::new(),
             additional_role: HashSet::new(),
             choosed_by: HashSet::new(),
-            history_by: HashSet::new(),
+            history_by: Vec::new(),
             is_alive: true,
             was_killed: false,
         }
