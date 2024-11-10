@@ -568,7 +568,7 @@ fn UserRoleIcon(role: Role, is_history: UserRoleIconType) -> impl IntoView {
             view! {
                 <div
                     class=move || match is_history {
-                        UserRoleIconType::History => "text-xs opacity-70 w-4 h-4",
+                        UserRoleIconType::History => "text-xs opacity-80 w-4 h-4",
                         UserRoleIconType::Current => "text-xs rounded-md bg-white w-4 h-4",
                         UserRoleIconType::Additional => "text-xs w-4 h-4",
                     }
@@ -688,9 +688,11 @@ fn SelectUsersForVote(
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
 
     let users = move || mafia_context.get().users;
+    let users_alive_len = move || users().iter().filter(|u| u.is_alive).count();
     let is_selected = move |user: &User| selected_users.get().contains(&user.name);
 
     view! {
+        <div class="text-sm">"Осталось игроков: "{users_alive_len()}</div>
         <div class="grid grid-cols-3 gap-1">
             <For
                 each=users
