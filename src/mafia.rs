@@ -1,12 +1,14 @@
 use std::collections::HashSet;
 
 use leptos::*;
+use serde::Deserialize;
+use serde::Serialize;
 use crate::user::*;
 use crate::roles::*;
 use crate::GameState;
 use crate::MafiaContext;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum MafiaRole {
     None,
     Citizen,
@@ -17,6 +19,11 @@ pub enum MafiaRole {
     Prostitute,
 }
 
+const _MAFIA_COLORS: [&str; 10] = [
+    "text-red-950", "text-blue-950", "text-gray-950", "text-green-950", "text-purple-950",
+    "bg-red-950", "bg-blue-950", "bg-gray-950", "bg-green-950", "bg-purple-950",
+];
+
 pub const MAFIA_ROLES: [RoleInfo; 6] = [
     RoleInfo::Icon(IconRoleInfo{
         role: Role::Mafia(MafiaRole::Citizen),
@@ -26,7 +33,7 @@ pub const MAFIA_ROLES: [RoleInfo; 6] = [
         role: Role::Mafia(MafiaRole::Mafia),
         check_role: None,
         role_name: "Мафия",
-        role_name_color: "text-red-950",
+        role_name_color: "red-950",
         role_icon: "🔫",
         prepare_description: "Выберите игроков Мафии",
         night_description: "Кого убьет Мафия?",
@@ -36,7 +43,7 @@ pub const MAFIA_ROLES: [RoleInfo; 6] = [
         role: Role::Mafia(MafiaRole::Detective),
         check_role: None,
         role_name: "Детектив",
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         role_icon: "🔍",
         prepare_description: "Выберите игрока Детектива",
         night_description: "Кого проверит Детектив?",
@@ -46,7 +53,7 @@ pub const MAFIA_ROLES: [RoleInfo; 6] = [
         role: Role::Mafia(MafiaRole::Maniac),
         check_role: None,
         role_name: "Маньяк",
-        role_name_color: "text-gray-950",
+        role_name_color: "gray-950",
         role_icon: "🔪",
         prepare_description: "Выберите игрока Маньяка",
         night_description: "Кого убьет Маньяк?",
@@ -56,7 +63,7 @@ pub const MAFIA_ROLES: [RoleInfo; 6] = [
         role: Role::Mafia(MafiaRole::Doctor),
         check_role: None,
         role_name: "Доктор",
-        role_name_color: "text-green-950",
+        role_name_color: "green-950",
         role_icon: "🚑",
         prepare_description: "Выберите игрока Доктора",
         night_description: "Кого спасет Доктор?",
@@ -66,7 +73,7 @@ pub const MAFIA_ROLES: [RoleInfo; 6] = [
         role: Role::Mafia(MafiaRole::Prostitute),
         check_role: None,
         role_name: "Проститутка",
-        role_name_color: "text-purple-950",
+        role_name_color: "purple-950",
         role_icon: "💋",
         prepare_description: "Выберите игрока Проститутку",
         night_description: "К кому зайдет Проститутка?",
@@ -370,11 +377,7 @@ fn UserRoleName(role: Role) -> impl IntoView {
         }, move |role_info| {
             view! {
                 <div
-                    class=move || {
-                        let mut class = "text-xs opacity-50 ".to_string();
-                        class.push_str(role_info.get_role_name_color());
-                        class
-                    }
+                    class=move || format!("text-xs opacity-50 {}", role_info.get_role_name_color())
                 >
                     {role_info.get_role_name()}
                 </div>

@@ -1,6 +1,8 @@
 use itertools::Itertools;
-use serde::de;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashSet;
+use std::hash::Hash;
 
 use crate::roles::*;
 use crate::user::*;
@@ -8,7 +10,7 @@ use crate::GameState;
 use crate::MafiaContext;
 use leptos::*;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum WerewolfRole {
     None,
     Villager,
@@ -43,6 +45,19 @@ pub enum WerewolfRole {
     // AuraSeer,
 }
 
+const _WEREWOLF_COLORS: [&str; 10] = [
+    "text-red-950",
+    "text-blue-950",
+    "text-gray-950",
+    "text-green-950",
+    "text-purple-950",
+    "bg-red-950/50",
+    "bg-blue-950/50",
+    "bg-gray-950/50",
+    "bg-green-950/50",
+    "bg-purple-950/50",
+];
+
 pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
     RoleInfo::Icon(IconRoleInfo {
         role: Role::Werewolf(WerewolfRole::Villager),
@@ -52,7 +67,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Bodyguard),
         check_role: None,
         role_name: "Bodyguard",
-        role_name_color: "text-green-950",
+        role_name_color: "green-950",
         role_icon: "🛡️",
         prepare_description: "Выберите игрока Bodyguard",
         night_description: "Кого защитит Bodyguard?",
@@ -63,7 +78,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         check_role: None,
         role_icon: "🙏",
         role_name: "Priest",
-        role_name_color: "text-green-950",
+        role_name_color: "green-950",
         prepare_description: "Выберите игрока Priest",
         night_description: "Кого освятит Priest?",
         targeting_rules: NightTargetingRules::OnlyOne,
@@ -72,7 +87,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Werewolf),
         check_role: None,
         role_name: "Werewolf",
-        role_name_color: "text-red-950",
+        role_name_color: "red-950",
         role_icon: "🐺",
         prepare_description: "Выберите игроков Werewolf",
         night_description: "Кого убьют Werewolf?",
@@ -83,11 +98,13 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Minion",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-red-950",
+        role_name_color: "red-950",
         prepare_description: "Выберите игрока Minion",
     }),
     RoleInfo::Additional(AdditionalRoleInfo {
         role: Role::Werewolf(WerewolfRole::DireWolf),
+        role_name: "Dire Wolf",
+        role_name_color: "red-950",
         role_icon: "💙",
         prepare_description: "Поставте сердечки игроку Dire Wolf и в кого он влюблен",
     }),
@@ -96,7 +113,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Cursed",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-purple-950",
+        role_name_color: "purple-950",
         prepare_description: "Выберите игрока Cursed",
     }),
     RoleInfo::Night(NightRoleInfo {
@@ -104,7 +121,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         check_role: None,
         role_icon: "🌿",
         role_name: "Witch",
-        role_name_color: "text-green-950",
+        role_name_color: "green-950",
         prepare_description: "Выберите игрока Witch",
         night_description: "Кого вылечит Witch?",
         targeting_rules: NightTargetingRules::OnlyOne,
@@ -114,7 +131,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         check_role: Some(Role::Werewolf(WerewolfRole::WitchHeal)),
         role_icon: "☠️",
         role_name: "Witch",
-        role_name_color: "text-green-950",
+        role_name_color: "green-950",
         prepare_description: "",
         night_description: "Кого отравит Witch?",
         targeting_rules: NightTargetingRules::OnlyOne,
@@ -123,7 +140,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Seer),
         check_role: None,
         role_name: "Seer",
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         role_icon: "🔍",
         prepare_description: "Выберите игрока Seer",
         night_description: "Кого проверит Seer?",
@@ -133,7 +150,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Spellcaster),
         check_role: None,
         role_name: "Spellcaster",
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         role_icon: "🤐",
         prepare_description: "Выберите игрока Spellcaster",
         night_description: "Кого заглушил Spellcaster?",
@@ -143,7 +160,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Huntress),
         check_role: None,
         role_name: "Huntress",
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         role_icon: "🏹",
         prepare_description: "Выберите игрока Huntress",
         night_description: "Кого убъет Huntress?",
@@ -153,7 +170,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Revealer),
         check_role: None,
         role_name: "Revealer",
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         role_icon: "🔦",
         prepare_description: "Выберите игрока Revealer",
         night_description: "Кого убъет Revealer?",
@@ -164,7 +181,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Mason",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-purple-950",
+        role_name_color: "purple-950",
         prepare_description: "Выберите игроков Mason",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
@@ -172,7 +189,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Lovers",
         role_icon: "❤️",
         additional_role: None,
-        role_name_color: "text-purple-950",
+        role_name_color: "purple-950",
         prepare_description: "Выберите игроков Lovers",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
@@ -180,7 +197,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "ToughGuy",
         role_icon: "💛",
         additional_role: Some(Role::Werewolf(WerewolfRole::ToughGuy)),
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         prepare_description: "Выберите игрока ToughGuy",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
@@ -188,7 +205,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Mayor",
         role_icon: "🎖️",
         additional_role: Some(Role::Werewolf(WerewolfRole::Mayor)),
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         prepare_description: "Выберите игрока Mayor",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
@@ -196,7 +213,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Lycan",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         prepare_description: "Выберите игрока Lycan",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
@@ -204,7 +221,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Prince",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         prepare_description: "Выберите игрока Prince",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
@@ -212,20 +229,21 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role_name: "Diseased",
         role_icon: "",
         additional_role: None,
-        role_name_color: "text-blue-950",
+        role_name_color: "blue-950",
         prepare_description: "Выберите игрока Diseased",
     }),
 ];
 
 #[derive(Clone, Copy, Debug)]
 pub enum WerewolfGameState<'a> {
+    SelectActiveRoles,
     SetupRoles(&'a RoleInfo),
     Day,
     Night(&'a RoleInfo),
     End,
 }
 
-fn get_next_prepare_role(role: Role) -> Option<&'static RoleInfo> {
+fn get_next_prepare_role(active_roles: HashSet<Role>, role: Role) -> Option<&'static RoleInfo> {
     let role_index = WEREWOLF_ROLES
         .iter()
         .position(|r| r.get_role() == role)
@@ -234,7 +252,7 @@ fn get_next_prepare_role(role: Role) -> Option<&'static RoleInfo> {
     let next_role = WEREWOLF_ROLES
         .iter()
         .skip(role_index.wrapping_add(1))
-        .find(|r| !r.get_prepare_description().is_empty());
+        .find(|r| active_roles.contains(&r.get_role()) && !r.get_prepare_description().is_empty());
 
     next_role
 }
@@ -251,14 +269,61 @@ fn get_next_night_role(role: &RoleInfo) -> Option<&'static RoleInfo> {
     next_role
 }
 
+const ROLES_STORAGE_KEY: &str = "werewolf_active_roles";
+
+#[derive(Clone, Debug)]
+struct WerewolfActiveRoles {
+    roles: HashSet<Role>,
+}
+
+impl Default for WerewolfActiveRoles {
+    fn default() -> Self {
+        let starting_roles = window()
+            .local_storage()
+            .ok()
+            .flatten()
+            .and_then(|storage| {
+                storage
+                    .get_item(ROLES_STORAGE_KEY)
+                    .ok()
+                    .flatten()
+                    .and_then(|value| serde_json::from_str::<HashSet<Role>>(&value).ok())
+            })
+            .unwrap_or_else(|| {
+                let mut roles = HashSet::new();
+                WEREWOLF_ROLES.iter().for_each(|r| match r {
+                    RoleInfo::Icon(_) => {}
+                    _ => {
+                        roles.insert(r.get_role());
+                    }
+                });
+                roles
+            });
+
+        Self {
+            roles: starting_roles,
+        }
+    }
+}
+
 #[component]
 pub fn WerewolfGameView() -> impl IntoView {
     let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
     let set_mafia_context =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
+    let (active_werewolf_roles, set_active_werewolf_roles) =
+        create_signal::<WerewolfActiveRoles>(WerewolfActiveRoles::default());
+
+    provide_context(active_werewolf_roles);
+
     let game_state_view = move || match mafia_context.get().game_state {
         GameState::Werewolf(game_state) => match game_state {
+            WerewolfGameState::SelectActiveRoles => view! {
+                <SelectActiveRoles active_werewolf_roles set_active_werewolf_roles />
+            }
+            .into_view(),
+
             WerewolfGameState::SetupRoles(role) => view! {
                 <SetupRolesView role={role} />
             }
@@ -301,6 +366,103 @@ pub fn WerewolfGameView() -> impl IntoView {
 }
 
 #[component]
+fn SelectActiveRoles(
+    active_werewolf_roles: ReadSignal<WerewolfActiveRoles>,
+    set_active_werewolf_roles: WriteSignal<WerewolfActiveRoles>,
+) -> impl IntoView {
+    let roles = WEREWOLF_ROLES.iter().filter(|r| match r {
+        RoleInfo::Night(_) => r.get_check_role() == r.get_role(),
+        RoleInfo::Passive(_) => true,
+        RoleInfo::Additional(_) => true,
+        _ => false,
+    });
+
+    let is_selected = move |role: &Role| active_werewolf_roles.get().roles.contains(role);
+
+    create_effect(move |_| {
+        if let Ok(Some(storage)) = window().local_storage() {
+            let user_names = &active_werewolf_roles.get().roles;
+            let json = serde_json::to_string(user_names).expect("couldn't serialize Users");
+            if storage.set_item(ROLES_STORAGE_KEY, &json).is_err() {
+                //log::error!("error while trying to set item in localStorage");
+            }
+        }
+    });
+
+    let set_game_state =
+        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let set_context_history =
+        use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
+
+    let onclick_next_role = move |_| {
+        set_game_state.update(|ctx| {
+            set_context_history.update(|history| history.push(ctx.clone()));
+
+            // find first selected role from list
+            let role_info = WEREWOLF_ROLES
+                .iter()
+                .find(|role_info| is_selected(&role_info.get_check_role()));
+
+            if let Some(role_info) = role_info {
+                ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(role_info));
+            }
+        });
+    };
+
+    let onclick_prev_role = move |_| {
+        set_context_history.update(|history| {
+            if let Some(prev_ctx) = history.pop() {
+                set_game_state.set(prev_ctx);
+            }
+        });
+    };
+
+    view! {
+        <div class="flex-1 flex flex-col gap-1 relative overflow-auto px-4 -mx-4">
+            {roles.map(|role| {
+                let role_clone = role.get_role().clone();
+                view!{
+                    <button class=move ||
+                        format!("rounded-full px-3 py-1 text-sm {}", if is_selected(
+                            &role.get_role()
+                        ) {
+                            format!("text-white {}", role.get_role_bg_color())
+                        } else {
+                            "bg-gray-200".to_string()
+                        })
+                        on:click=move|_|{
+                            set_active_werewolf_roles.update(|active_werewolf_roles|{
+                                if active_werewolf_roles.roles.contains(&role_clone) {
+                                    active_werewolf_roles.roles.remove(&role_clone);
+                                }else{
+                                    active_werewolf_roles.roles.insert(role_clone);
+                                }
+                            });
+                        }
+                    >
+                        {role.get_role_name()}
+                    </button>
+                }
+            }).collect::<Vec<_>>().into_view()}
+        </div>
+        <div class="flex gap-2 w-full items-center">
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click=onclick_prev_role
+            >
+                "Назад"
+            </button>
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click=onclick_next_role
+            >
+                "Далее"
+            </button>
+        </div>
+    }
+}
+
+#[component]
 fn UserRow(user: User) -> impl IntoView {
     let users = use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
 
@@ -334,22 +496,19 @@ fn SetupRolesView<'a>(role: &'a RoleInfo) -> impl IntoView {
 
 #[component]
 fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
-    let len = move || {
-        WEREWOLF_ROLES
-            .iter()
-            .filter(|r| !r.get_prepare_description().is_empty())
-            .count()
+    let active_roles =
+        use_context::<ReadSignal<WerewolfActiveRoles>>().expect("WerewolfActiveRoles exists");
+
+    let roles_iter = move || {
+        WEREWOLF_ROLES.iter().filter(move |r| {
+            active_roles.get().roles.contains(&r.get_role())
+                && !r.get_prepare_description().is_empty()
+        })
     };
 
+    let len = move || roles_iter().count();
     let role_clone = role.clone();
-    let index = move || {
-        WEREWOLF_ROLES
-            .iter()
-            .filter(|r| !r.get_prepare_description().is_empty())
-            .position(|r| r == &role_clone)
-            .unwrap_or(0)
-            + 1
-    };
+    let index = move || roles_iter().position(|r| r == &role_clone).unwrap_or(0) + 1;
 
     view! {
         <div class="flex flex-col gap-2">
@@ -597,11 +756,7 @@ fn UserRoleName(role: Role) -> impl IntoView {
             move |role_info| {
                 view! {
                     <div
-                        class=move || {
-                            let mut class = "text-xs opacity-50 ".to_string();
-                            class.push_str(role_info.get_role_name_color());
-                            class
-                        }
+                        class=move || format!("text-xs opacity-50 {}", role_info.get_role_name_color())
                     >
                         {role_info.get_role_name()}
                     </div>
@@ -628,6 +783,8 @@ fn UserAdditionalRoles(roles: HashSet<Role>) -> impl IntoView {
 
 #[component]
 fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
+    let active_werewolf_roles =
+        use_context::<ReadSignal<WerewolfActiveRoles>>().expect("WerewolfActiveRoles not found");
     let set_game_state =
         use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
     let set_context_history =
@@ -638,7 +795,7 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         set_game_state.update(|ctx| {
             set_context_history.update(|history| history.push(ctx.clone()));
 
-            match get_next_prepare_role(role) {
+            match get_next_prepare_role(active_werewolf_roles.get().roles, role) {
                 Some(role_info) => {
                     ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(role_info))
                 }

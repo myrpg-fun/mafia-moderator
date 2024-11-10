@@ -1,7 +1,10 @@
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::MafiaRole;
 use crate::WerewolfRole;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum Role {
     Mafia(MafiaRole),
     Werewolf(WerewolfRole),
@@ -62,16 +65,27 @@ impl RoleInfo {
         match self {
             RoleInfo::Night(night) => night.role_name,
             RoleInfo::Passive(passive) => passive.role_name,
+            RoleInfo::Additional(passive) => passive.role_name,
             _ => "",
         }
     }
 
     // getters role_name_color
-    pub fn get_role_name_color(&self) -> &'static str {
+    pub fn get_role_name_color(&self) -> String {
         match self {
-            RoleInfo::Night(night) => night.role_name_color,
-            RoleInfo::Passive(passive) => passive.role_name_color,
-            _ => "",
+            RoleInfo::Night(night) => format!("{}{}", "text-", night.role_name_color),
+            RoleInfo::Passive(passive) => format!("{}{}", "text-", passive.role_name_color),
+            RoleInfo::Additional(passive) => format!("{}{}", "text-", passive.role_name_color),
+            _ => "".to_string(),
+        }
+    }
+
+    pub fn get_role_bg_color(&self) -> String {
+        match self {
+            RoleInfo::Night(night) => format!("bg-{}/50", night.role_name_color),
+            RoleInfo::Passive(passive) => format!("bg-{}/50", passive.role_name_color),
+            RoleInfo::Additional(passive) => format!("bg-{}/50", passive.role_name_color),
+            _ => "".to_string(),
         }
     }
 
@@ -147,6 +161,8 @@ impl PartialEq<Role> for PassiveRoleInfo {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct AdditionalRoleInfo {
     pub role: Role,
+    pub role_name: &'static str,
+    pub role_name_color: &'static str,
     pub role_icon: &'static str,
     pub prepare_description: &'static str,
 }

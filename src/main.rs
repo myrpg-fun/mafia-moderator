@@ -186,8 +186,8 @@ fn SetupUsers() -> impl IntoView {
                                 history.push(ctx.clone());
                             });
 
-                            let first_role = WEREWOLF_ROLES.iter().filter(|r| r.get_role() == Role::Werewolf(WerewolfRole::Bodyguard)).next().unwrap();
-                            ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(first_role));
+                            // let first_role = WEREWOLF_ROLES.iter().filter(|r| r.get_role() == Role::Werewolf(WerewolfRole::Bodyguard)).next().unwrap();
+                            ctx.game_state = GameState::Werewolf(WerewolfGameState::SelectActiveRoles);
                         })
                         class="flex-grow px-4 py-1 bg-gray-200 rounded-full"
                 >
