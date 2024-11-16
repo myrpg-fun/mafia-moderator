@@ -6,8 +6,8 @@ use std::hash::Hash;
 
 use crate::roles::*;
 use crate::user::*;
+use crate::GameContext;
 use crate::GameState;
-use crate::MafiaContext;
 use leptos::*;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -308,16 +308,14 @@ impl Default for WerewolfActiveRoles {
 
 #[component]
 pub fn WerewolfGameView() -> impl IntoView {
-    let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
-    let set_mafia_context =
-        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
     let (active_werewolf_roles, set_active_werewolf_roles) =
         create_signal::<WerewolfActiveRoles>(WerewolfActiveRoles::default());
 
     provide_context(active_werewolf_roles);
 
-    let game_state_view = move || match mafia_context.get().game_state {
+    let game_state_view = move || match mafia_context.game_state.get() {
         GameState::Werewolf(game_state) => match game_state {
             WerewolfGameState::SelectActiveRoles => view! {
                 <SelectActiveRoles active_werewolf_roles set_active_werewolf_roles />
@@ -355,7 +353,7 @@ pub fn WerewolfGameView() -> impl IntoView {
                 <button
                     class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
                     on:click=move |_| if window().confirm_with_message("Вернуться в главное меню?").expect("REASON") {
-                        set_mafia_context.set(MafiaContext::default());
+                        mafia_context.game_state.set(GameState::SetupNames);
                     }>
                     "Главное меню"
                 </button>
@@ -389,30 +387,31 @@ fn SelectActiveRoles(
         }
     });
 
-    let set_game_state =
-        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
     let set_context_history =
-        use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
+        use_context::<WriteSignal<Vec<GameContext>>>().expect("MafiaContext history not found");
 
     let onclick_next_role = move |_| {
-        set_game_state.update(|ctx| {
-            set_context_history.update(|history| history.push(ctx.clone()));
+        //set_context_history.update(|history| history.push(ctx.clone()));
 
-            // find first selected role from list
-            let role_info = WEREWOLF_ROLES
-                .iter()
-                .find(|role_info| is_selected(&role_info.get_check_role()));
+        // find first selected role from list
+        let role_info = WEREWOLF_ROLES
+            .iter()
+            .find(|role_info| is_selected(&role_info.get_check_role()));
 
-            if let Some(role_info) = role_info {
-                ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(role_info));
-            }
-        });
+        if let Some(role_info) = role_info {
+            game_ctx
+                .game_state
+                .set(GameState::Werewolf(WerewolfGameState::SetupRoles(
+                    role_info,
+                )));
+        }
     };
 
     let onclick_prev_role = move |_| {
         set_context_history.update(|history| {
             if let Some(prev_ctx) = history.pop() {
-                set_game_state.set(prev_ctx);
+                //game_ctx.set(prev_ctx);
             }
         });
     };
@@ -463,15 +462,15 @@ fn SelectActiveRoles(
 }
 
 #[component]
-fn UserRow(user: User) -> impl IntoView {
-    let users = use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+fn UserRow(user: Player) -> impl IntoView {
+    let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
 
     view! {
         <div class="flex gap-2">
             <div class="flex-1 px-3 py-1 text-base bg-gray-200 rounded-full">{user.name.clone()}</div>
             <button class="text-lg"
                 on:click=move |_| {
-                    users.update(|ctx| ctx.users.retain(|u| *u != user));
+                    game_ctx.users.update(|users| users.retain(|u| *u != user));
                 }
             >
                 "✕"
@@ -521,11 +520,9 @@ fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
 
 #[component]
 fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
-    let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
-    let set_mafia_context =
-        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
-    let users = move || mafia_context.get().users;
+    let users = move || mafia_context.users.get();
     let role = role_info.get_role();
     let role_info = role_info.clone();
 
@@ -533,7 +530,7 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         <div class="grid grid-cols-3 gap-1">
             <For
                 each=users
-                key=|user| user.name.clone()
+                key=|user| format!("{}-{}-{}-{}", user.name, user.role.len(), user.additional_role.len(), user.choosed_by.len())
                 children=move |user| {
                     let user_clone = user.clone();
 
@@ -550,8 +547,8 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                                 }
                             }
                             on:click=move |_| {
-                                set_mafia_context.update(|ctx| {
-                                    if let Some(user) = ctx.users.iter_mut().find(|u| **u == user) {
+                                mafia_context.users.update(|users| {
+                                    if let Some(user) = users.iter_mut().find(|u| **u == user) {
                                         match role_info{
                                             RoleInfo::Additional(_) => {
                                                 if user.additional_role.contains(&role){
@@ -595,8 +592,8 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
 
 #[component]
 fn UserSelectRole(
-    user: User,
-    is_selected: impl Fn(&User) -> bool + 'static,
+    user: Player,
+    is_selected: impl Fn(&Player) -> bool + 'static,
     disabled: bool,
     killed: bool,
     highlighted: bool,
@@ -785,33 +782,38 @@ fn UserAdditionalRoles(roles: HashSet<Role>) -> impl IntoView {
 fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let active_werewolf_roles =
         use_context::<ReadSignal<WerewolfActiveRoles>>().expect("WerewolfActiveRoles not found");
-    let set_game_state =
-        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
     let set_context_history =
-        use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
+        use_context::<WriteSignal<Vec<GameContext>>>().expect("MafiaContext history not found");
 
     let role = role_info.get_role();
     let onclick_next_role = move |_| {
-        set_game_state.update(|ctx| {
-            set_context_history.update(|history| history.push(ctx.clone()));
+        //set_context_history.update(|history| history.push(ctx.clone()));
 
-            match get_next_prepare_role(active_werewolf_roles.get().roles, role) {
-                Some(role_info) => {
-                    ctx.game_state = GameState::Werewolf(WerewolfGameState::SetupRoles(role_info))
-                }
-                None => {
-                    initialize_user_roles(&mut ctx.users);
-                    ctx.round = 0;
-                    ctx.game_state = GameState::Werewolf(WerewolfGameState::Day);
-                }
+        match get_next_prepare_role(active_werewolf_roles.get().roles, role) {
+            Some(role_info) => {
+                game_ctx
+                    .game_state
+                    .set(GameState::Werewolf(WerewolfGameState::SetupRoles(
+                        role_info,
+                    )))
             }
-        });
+            None => {
+                game_ctx.users.update(|users| {
+                    initialize_user_roles(users);
+                });
+                game_ctx.round.set(0);
+                game_ctx
+                    .game_state
+                    .set(GameState::Werewolf(WerewolfGameState::Day));
+            }
+        }
     };
 
     let onclick_prev_role = move |_| {
         set_context_history.update(|history| {
             if let Some(prev_ctx) = history.pop() {
-                set_game_state.set(prev_ctx);
+                //game_ctx.set(prev_ctx);
             }
         });
     };
@@ -838,15 +840,15 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
 fn SelectUsersForVote(
     selected_users: ReadSignal<HashSet<String>>,
     set_selected_users: WriteSignal<HashSet<String>>,
-    is_killed: impl Fn(&User) -> bool + 'static,
-    is_disabled: impl Fn(&User) -> bool + 'static,
-    is_highlighted: impl Fn(&User) -> bool + 'static,
+    is_killed: impl Fn(&Player) -> bool + 'static,
+    is_disabled: impl Fn(&Player) -> bool + 'static,
+    is_highlighted: impl Fn(&Player) -> bool + 'static,
 ) -> impl IntoView {
-    let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
+    let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
-    let users = move || mafia_context.get().users;
+    let users = move || mafia_context.users.get();
     let users_alive_len = move || users().iter().filter(|u| u.is_alive).count();
-    let is_selected = move |user: &User| selected_users.get().contains(&user.name);
+    let is_selected = move |user: &Player| selected_users.get().contains(&user.name);
 
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len()}</div>
@@ -885,20 +887,19 @@ fn SelectUsersForVote(
 
 #[component]
 fn DayVote() -> impl IntoView {
-    let set_game_state =
-        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
 
     let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
 
     let onclick_next_role = move || {
         let selected_users = selected_users.get();
-        set_game_state.update(|state| {
-            let round = state.round;
+        let round = game_ctx.round.get();
 
-            clear_choosed_by(&mut state.users, round);
-            clear_was_killed(&mut state.users);
+        game_ctx.users.update(|users| {
+            clear_choosed_by(users, round);
+            clear_was_killed(users);
 
-            fn kill_user(user: &mut User, round: usize) {
+            fn kill_user(user: &mut Player, round: usize) {
                 if !user.is_alive {
                     return;
                 }
@@ -918,30 +919,32 @@ fn DayVote() -> impl IntoView {
                 user.was_killed = true;
             }
 
-            state.users.iter_mut().for_each(|u| {
+            users.iter_mut().for_each(|u| {
                 if selected_users.contains(&u.name) {
                     kill_user(u, round);
                 }
             });
 
-            calculate_after_kills(&mut state.users);
-            clear_choosed_by(&mut state.users, round + 1);
+            calculate_after_kills(users);
+            clear_choosed_by(users, round + 1);
+        });
 
-            let mut next_role = Some(WEREWOLF_ROLES.first().unwrap());
-            loop {
-                if let Some(check_role) = next_role {
-                    if is_role_alive(check_role.get_role(), &state.users) {
-                        state.game_state =
-                            GameState::Werewolf(WerewolfGameState::Night(check_role));
-                        break;
-                    }
-                    next_role = get_next_night_role(check_role);
-                } else {
-                    state.game_state = GameState::SetupNames;
+        let users = game_ctx.users.get();
+        let mut next_role = Some(WEREWOLF_ROLES.first().unwrap());
+        loop {
+            if let Some(check_role) = next_role {
+                if is_role_alive(check_role.get_role(), &users) {
+                    game_ctx
+                        .game_state
+                        .set(GameState::Werewolf(WerewolfGameState::Night(check_role)));
                     break;
                 }
+                next_role = get_next_night_role(check_role);
+            } else {
+                game_ctx.game_state.set(GameState::SetupNames);
+                break;
             }
-        });
+        }
     };
 
     view! {
@@ -951,7 +954,7 @@ fn DayVote() -> impl IntoView {
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
                 <SelectUsersForVote selected_users set_selected_users
-                    is_killed=move |user: &User| !user.is_alive && !user.was_killed
+                    is_killed=move |user: &Player| !user.is_alive && !user.was_killed
                     is_disabled=move |user| !user.is_alive
                     is_highlighted=move |_| false
                 />
@@ -967,24 +970,23 @@ where
     F: Fn() + 'static,
 {
     let set_context_history =
-        use_context::<WriteSignal<Vec<MafiaContext>>>().expect("MafiaContext history not found");
+        use_context::<WriteSignal<Vec<GameContext>>>().expect("MafiaContext history not found");
 
     let onclick_prev_role = move |_| {
         set_context_history.update(|history| {
             if let Some(prev_ctx) = history.pop() {
-                let set_game_state =
-                    use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
-                set_game_state.set(prev_ctx);
+                let set_game_state = use_context::<GameContext>().expect("MafiaContext not found");
+                //set_game_state.set(prev_ctx);
             }
         });
     };
 
     let onclick_next = move |_| {
-        let ctx = use_context::<ReadSignal<MafiaContext>>()
-            .expect("MafiaContext not found")
-            .get();
+        // let ctx = use_context::<GameContext>()
+        //     .expect("MafiaContext not found")
+        //     .get();
 
-        set_context_history.update(|history| history.push(ctx.clone()));
+        //set_context_history.update(|history| history.push(ctx.clone()));
 
         onclick_next_role();
     };
@@ -1007,11 +1009,11 @@ where
     }
 }
 
-fn is_role_alive(role: Role, users: &[User]) -> bool {
+fn is_role_alive(role: Role, users: &[Player]) -> bool {
     users.iter().any(|u| u.role.contains(&role) && u.is_alive)
 }
 
-fn get_next_night_alive_role(role_info: &RoleInfo, users: &[User]) -> Option<&'static RoleInfo> {
+fn get_next_night_alive_role(role_info: &RoleInfo, users: &[Player]) -> Option<&'static RoleInfo> {
     let mut next_role = role_info;
     loop {
         let check_role = get_next_night_role(next_role);
@@ -1026,7 +1028,7 @@ fn get_next_night_alive_role(role_info: &RoleInfo, users: &[User]) -> Option<&'s
     }
 }
 
-fn clear_choosed_by(users: &mut [User], round: usize) {
+fn clear_choosed_by(users: &mut [Player], round: usize) {
     for user in users.iter_mut() {
         if !user.choosed_by.is_empty() {
             user.history_by.push((round, user.choosed_by.clone()));
@@ -1041,18 +1043,18 @@ fn clear_choosed_by(users: &mut [User], round: usize) {
     }
 }
 
-fn clear_was_killed(users: &mut [User]) {
+fn clear_was_killed(users: &mut [Player]) {
     for user in users.iter_mut() {
         user.was_killed = false;
     }
 }
 
-fn calculate_night_kills(users: &mut [User]) {
+fn calculate_night_kills(users: &mut [Player]) {
     clear_was_killed(users);
     // Mafia killed choosed user if he is not protected by doctor or prostitute
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
-    fn is_user_protected(user: &User, check_protection: &[Role]) -> bool {
+    fn is_user_protected(user: &Player, check_protection: &[Role]) -> bool {
         for role in check_protection {
             if user.choosed_by.contains(role) {
                 return true;
@@ -1061,7 +1063,7 @@ fn calculate_night_kills(users: &mut [User]) {
         return false;
     }
 
-    fn kill_user(user: &mut User, check_protection: &[Role]) {
+    fn kill_user(user: &mut Player, check_protection: &[Role]) {
         if !user.is_alive {
             return;
         }
@@ -1193,11 +1195,11 @@ fn calculate_night_kills(users: &mut [User]) {
     }
 }
 
-fn initialize_user_roles(users: &mut [User]) {
+fn initialize_user_roles(users: &mut [Player]) {
     // init additional roles
 }
 
-fn calculate_after_kills(users: &mut [User]) {
+fn calculate_after_kills(users: &mut [Player]) {
     let mut kill_indices: Vec<usize> = Vec::new();
 
     for user in users.iter() {
@@ -1242,7 +1244,7 @@ fn calculate_after_kills(users: &mut [User]) {
 }
 
 // check is user history contains role
-fn check_user_history_for_role(user: &User, role: &Role) -> bool {
+fn check_user_history_for_role(user: &Player, role: &Role) -> bool {
     user.history_by
         .iter()
         .any(|(_, roles)| roles.contains(role))
@@ -1250,41 +1252,45 @@ fn check_user_history_for_role(user: &User, role: &Role) -> bool {
 
 #[component]
 fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
-    let mafia_context = use_context::<ReadSignal<MafiaContext>>().expect("MafiaContext not found");
-    let set_game_state =
-        use_context::<WriteSignal<MafiaContext>>().expect("MafiaContext not found");
+    let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
+    let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
     let night_description = role_info.get_night_description();
 
-    let users = move || mafia_context.get().users;
+    let users = move || mafia_context.users.get();
 
     let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
     let role = role_info.get_role();
 
     let onclick_next_role = move || {
         let selected_users = selected_users.get();
-        set_game_state.update(|state| {
-            state.users.iter_mut().for_each(|u| {
+        game_ctx.users.update(|users| {
+            users.iter_mut().for_each(|u| {
                 if selected_users.contains(&u.name) {
                     u.choosed_by.insert(role);
                 }
             })
         });
 
-        set_game_state.update(|state| {
-            let next_role = get_next_night_alive_role(role_info, &state.users);
+        let users = game_ctx.users.get();
+        let next_role = get_next_night_alive_role(role_info, &users);
 
-            match next_role {
-                Some(next_role) => {
-                    state.game_state = GameState::Werewolf(WerewolfGameState::Night(next_role));
-                }
-                None => {
-                    calculate_night_kills(&mut state.users);
-                    calculate_after_kills(&mut state.users);
-                    state.round += 1;
-                    state.game_state = GameState::Werewolf(WerewolfGameState::Day);
-                }
+        match next_role {
+            Some(next_role) => {
+                game_ctx
+                    .game_state
+                    .set(GameState::Werewolf(WerewolfGameState::Night(next_role)));
             }
-        });
+            None => {
+                game_ctx.users.update(|users| {
+                    calculate_night_kills(users);
+                    calculate_after_kills(users);
+                });
+                game_ctx.round.set(game_ctx.round.get() + 1);
+                game_ctx
+                    .game_state
+                    .set(GameState::Werewolf(WerewolfGameState::Day));
+            }
+        }
     };
 
     let role_targeting_rules = role_info.get_targeting_rules();
@@ -1294,7 +1300,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
             .any(|u| check_user_history_for_role(u, &role)),
         _ => false,
     };
-    let is_disabled = move |user: &User| {
+    let is_disabled = move |user: &Player| {
         is_fully_disabled
             || !user.is_alive
             || match role_targeting_rules {
@@ -1304,7 +1310,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     };
 
     let role_info = role_info.clone();
-    let is_highlighted = move |user: &User| {
+    let is_highlighted = move |user: &Player| {
         if role_info.get_role() == Role::Werewolf(WerewolfRole::Seer) {
             user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 || user.role.contains(&Role::Werewolf(WerewolfRole::Lycan))
@@ -1321,7 +1327,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
             <SelectUsersForVote
-                is_killed=move |user: &User| !user.is_alive && !user.was_killed
+                is_killed=move |user: &Player| !user.is_alive && !user.was_killed
                 selected_users set_selected_users is_disabled is_highlighted />
             </div>
         </div>
