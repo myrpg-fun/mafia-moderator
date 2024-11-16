@@ -1,6 +1,4 @@
 use leptos::*;
-use leptos_use::*;
-
 mod mafia;
 mod roles;
 mod user;
@@ -9,9 +7,21 @@ mod werewolf;
 use mafia::*;
 use roles::Role;
 use user::*;
+use wasm_bindgen::prelude::*;
+use web_sys::{
+    console,
+    js_sys::{self, Promise},
+};
 use werewolf::*;
 
+#[wasm_bindgen(module = "/src/js/GoogleSheetsAPI.js")]
+extern "C" {
+    pub fn initializeGAPI() -> JsValue; // JsValue <==> Promise
+    pub fn loadAllUsersAsync() -> JsValue; // JsValue <==> Promise
+}
+
 fn main() {
+    initializeGAPI();
     mount_to_body(|| {
         view! {
             <StartScreen />
@@ -40,6 +50,69 @@ struct MafiaContext<'a> {
 }
 
 const STORAGE_KEY: &str = "mafia_users";
+
+#[derive(Clone, Debug)]
+struct UserSheetInfo {
+    id: String,
+    name: String,
+    score: i32,
+    mafia: UserMafiaSheetInfo,
+    werewolf: UserWerewolfSheetInfo,
+}
+
+#[derive(Clone, Debug)]
+struct UserMafiaSheetInfo {
+    score: i32,
+    games: i32,
+    wins: i32,
+    win_citizen: i32,
+    win_mafia: i32,
+    win_maniac: i32,
+    win_commissar: i32,
+    win_prostitute: i32,
+    win_doctor: i32,
+    best_player: i32,
+}
+
+#[derive(Clone, Debug)]
+struct UserWerewolfSheetInfo {
+    score: i32,
+    games: i32,
+    wins: i32,
+    win_villager: i32,
+    win_werewolf: i32,
+    best_player: i32,
+}
+
+impl From<js_sys::Array> for UserSheetInfo {
+    fn from(user_info: js_sys::Array) -> Self {
+        UserSheetInfo {
+            id: user_info.get(0).as_string().unwrap(),
+            name: user_info.get(1).as_string().unwrap(),
+            score: user_info.get(2).as_string().unwrap().parse().unwrap(),
+            mafia: UserMafiaSheetInfo {
+                score: user_info.get(3).as_string().unwrap().parse().unwrap(),
+                games: user_info.get(4).as_string().unwrap().parse().unwrap(),
+                wins: user_info.get(5).as_string().unwrap().parse().unwrap(),
+                win_citizen: user_info.get(6).as_string().unwrap().parse().unwrap(),
+                win_mafia: user_info.get(7).as_string().unwrap().parse().unwrap(),
+                win_maniac: user_info.get(8).as_string().unwrap().parse().unwrap(),
+                win_commissar: user_info.get(9).as_string().unwrap().parse().unwrap(),
+                win_prostitute: user_info.get(10).as_string().unwrap().parse().unwrap(),
+                win_doctor: user_info.get(11).as_string().unwrap().parse().unwrap(),
+                best_player: user_info.get(12).as_string().unwrap().parse().unwrap(),
+            },
+            werewolf: UserWerewolfSheetInfo {
+                score: user_info.get(13).as_string().unwrap().parse().unwrap(),
+                games: user_info.get(14).as_string().unwrap().parse().unwrap(),
+                wins: user_info.get(15).as_string().unwrap().parse().unwrap(),
+                win_villager: user_info.get(16).as_string().unwrap().parse().unwrap(),
+                win_werewolf: user_info.get(17).as_string().unwrap().parse().unwrap(),
+                best_player: user_info.get(18).as_string().unwrap().parse().unwrap(),
+            },
+        }
+    }
+}
 
 impl Default for MafiaContext<'_> {
     fn default() -> Self {
@@ -124,10 +197,48 @@ fn SetupUsers() -> impl IntoView {
 
     let users = move || mafia_ctx.get().users.into_iter().enumerate();
 
+    async fn load_users() {
+        // Convert JsValue to Promise
+        let promise_as_js_value = loadAllUsersAsync();
+        let promise = Promise::from(promise_as_js_value);
+
+        // Convert the promise to a future
+        let future = wasm_bindgen_futures::JsFuture::from(promise);
+
+        match future.await {
+            Ok(content) => {
+                // Handle the content
+                let users = js_sys::Array::from(&content);
+
+                // Convert the JsValue to a Vec<String>
+                let mut users_sheet_info = Vec::<UserSheetInfo>::new();
+                for i in 0..users.length() {
+                    let user_data = users.get(i);
+                    let user_info = js_sys::Array::from(&user_data);
+
+                    let info = UserSheetInfo::from(user_info);
+
+                    users_sheet_info.push(info);
+                }
+
+                logging::log!("{:?}", users_sheet_info);
+            }
+            Err(err) => {
+                // Handle the error
+                console::log_1(&err);
+            }
+        }
+    }
+
     view! {
         <div class="relative flex flex-col gap-4 w-full h-full">
-            <h2 class="flex w-full items-baseline justify-start gap-2">
+            <h2 class="flex w-full items-baseline justify-between gap-2">
                 "Введите имена игроков"
+                <button on:click=move |_| {
+                    wasm_bindgen_futures::spawn_local(load_users());
+                }>
+                Загрузить
+                </button>
             </h2>
             <div class="flex-1 flex flex-col gap-1 overflow-auto -mx-4 px-4">
                 <For
