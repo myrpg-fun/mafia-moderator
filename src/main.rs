@@ -7,13 +7,23 @@ mod werewolf;
 
 use mafia::*;
 use roles::Role;
+use serde::Serialize;
 use user::*;
 use wasm_bindgen::prelude::*;
-use web_sys::{
-    console,
-    js_sys::{self, Promise},
-};
+use web_sys::{console, js_sys};
 use werewolf::*;
+
+#[derive(Serialize, Debug)]
+pub struct UserLogs {
+    id: String,
+    name: String,
+    role: String,
+    score: u32,
+    winner: bool,
+    best_player: bool,
+    role_index: u32,
+    rounds: Vec<String>,
+}
 
 #[wasm_bindgen(module = "/src/js/GoogleSheetsAPI.js")]
 extern "C" {
@@ -21,6 +31,17 @@ extern "C" {
     pub fn handleSigninClick() -> JsValue; // JsValue <==> Promise
     pub fn loadAllUsers() -> JsValue; // JsValue <==> Promise
     pub fn createNewUser(id: &str, name: &str) -> JsValue; // JsValue <==> Promise
+    pub fn createNewGameLog(users: &JsValue) -> JsValue; // JsValue <==> Promise
+}
+
+pub fn rust_create_new_game_log(log_users: Vec<UserLogs>) {
+    // Convert the users into a JsValue that JS can understand
+    let js_users = serde_wasm_bindgen::to_value(&log_users);
+
+    if let Ok(js_users) = js_users {
+        // Call the JS function
+        createNewGameLog(&js_users);
+    }
 }
 
 fn main() {
@@ -125,7 +146,7 @@ fn StartScreen() -> impl IntoView {
     let check_auth = async move {
         // Convert JsValue to Promise
         let promise_as_js_value = initializeGAPI();
-        let promise = Promise::from(promise_as_js_value);
+        let promise = js_sys::Promise::from(promise_as_js_value);
 
         // Convert the promise to a future
         let future = wasm_bindgen_futures::JsFuture::from(promise);
@@ -154,7 +175,7 @@ fn StartScreen() -> impl IntoView {
             wasm_bindgen_futures::spawn_local(async move {
                 // Convert JsValue to Promise
                 let promise_as_js_value = loadAllUsers();
-                let promise = Promise::from(promise_as_js_value);
+                let promise = js_sys::Promise::from(promise_as_js_value);
 
                 // Convert the promise to a future
                 let future = wasm_bindgen_futures::JsFuture::from(promise);
@@ -341,7 +362,7 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                         on:click=move |_| {
                             // Convert JsValue to Promise
                             let promise_as_js_value = handleSigninClick();
-                            let promise = Promise::from(promise_as_js_value);
+                            let promise = js_sys::Promise::from(promise_as_js_value);
 
                             // Convert the promise to a future
                             let future = wasm_bindgen_futures::JsFuture::from(promise);

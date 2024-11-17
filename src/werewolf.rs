@@ -62,6 +62,8 @@ const _WEREWOLF_COLORS: [&str; 10] = [
 pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
     RoleInfo::Icon(IconRoleInfo {
         role: Role::Werewolf(WerewolfRole::Villager),
+        role_name: "Villagers",
+        role_name_color: "blue-950",
         role_icon: "✋",
     }),
     RoleInfo::Night(NightRoleInfo {

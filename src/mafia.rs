@@ -3,11 +3,13 @@ use std::collections::HashSet;
 use leptos::*;
 use serde::Deserialize;
 use serde::Serialize;
+use crate::rust_create_new_game_log;
 use crate::user::*;
 use crate::roles::*;
 use crate::GameContextHistory;
 use crate::GameState;
 use crate::GameContext;
+use crate::UserLogs;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum MafiaRole {
@@ -28,6 +30,8 @@ const _MAFIA_COLORS: [&str; 10] = [
 pub const MAFIA_ROLES: [RoleInfo; 6] = [
     RoleInfo::Icon(IconRoleInfo{
         role: Role::Mafia(MafiaRole::Citizen),
+        role_name: "Мирные",
+        role_name_color: "blue-950",
         role_icon: "✋",
     }),
     RoleInfo::Night(NightRoleInfo {
@@ -87,7 +91,6 @@ pub enum MafiaGameState<'a> {
     SetupRoles(&'a RoleInfo),
     Day,
     Night(&'a RoleInfo),
-    End,
 }
 
 fn get_next_prepare_role(role: Role) -> Option<&'static RoleInfo> {
@@ -104,48 +107,269 @@ fn get_next_night_role(role: Role) -> Option<&'static RoleInfo> {
 
 #[component]
 pub fn MafiaGameView() -> impl IntoView {
+    let open_finish_game_dialogue = create_rw_signal(false);
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
-    let game_state_view = move || match mafia_context.game_state.get() {
-        GameState::Mafia(game_state) => match game_state {
-            MafiaGameState::SetupRoles(role) => view! {
-                <SetupRolesView role={role} />
-            }
-            .into_view(),
+    let game_state_view = move || {
+        if open_finish_game_dialogue.get() {
+            return view! {
+                <SelectWinners 
+                    on_close=move || open_finish_game_dialogue.set(false)
+                    on_finish=move || mafia_context.game_state.set(GameState::SetupNames)
+                />
+            }.into_view();
+        }
 
-            MafiaGameState::Day => view! {
-                <DayVote />
-            }
-            .into_view(),
-            MafiaGameState::Night(role) => view! {
-                <NightTurn role_info={role} />
-            }
-            .into_view(),
-            MafiaGameState::End => view! {
-                <div>"Конец игры"</div>
-            }
-            .into_view(),
-        },
-        _ => view! {
-            <div>"Ошибка"</div>
-        }.into_view()
+        match mafia_context.game_state.get() {
+            GameState::Mafia(game_state) => match game_state {
+                MafiaGameState::SetupRoles(role) => view! {
+                    <SetupRolesView role={role} />
+                }
+                .into_view(),
+
+                MafiaGameState::Day => view! {
+                    <DayVote />
+                }
+                .into_view(),
+                
+                MafiaGameState::Night(role) => view! {
+                    <NightTurn role_info={role} />
+                }
+                .into_view(),
+            },
+            _ => view! {
+                <div>"Ошибка"</div>
+            }.into_view()
+        }
     };
 
     view! {
         <div class="relative flex flex-col gap-4 w-full h-full">
             <h1 class="text-lg relative w-full text-left">
                 "Мафия"
-                <button
-                    class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
-                    on:click=move |_| {
-                        if window().confirm_with_message("Вернуться в главное меню?").expect("REASON") {
-                            mafia_context.game_state.set(GameState::SetupNames);
+                {move || if open_finish_game_dialogue.get() {
+                    view!{
+                        <button
+                            class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
+                            on:click=move |_| {
+                                open_finish_game_dialogue.set(false);
+                            }>
+                            "Отмена"
+                        </button>
                         }
-                    }>
-                    "Главное меню"
-                </button>
+                    }else{
+                        view!{
+                        <button
+                            class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
+                            on:click=move |_| {
+                                open_finish_game_dialogue.set(true);
+                            }>
+                            "Завершить игру"
+                        </button>
+                        }
+                    }
+                }
             </h1>
             {game_state_view}
+        </div>
+    }
+}
+
+#[component]
+fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn() -> () + Clone + 'static) -> impl IntoView{
+    let selected_winners = create_rw_signal(HashSet::<Role>::new());
+
+    let roles = [
+        RoleInfo::Icon(IconRoleInfo{
+            role: Role::Mafia(MafiaRole::Maniac),
+            role_name: "Маньяк",
+            role_name_color: "purple-950",
+            role_icon: "🔪",
+        }),
+        RoleInfo::Icon(IconRoleInfo{
+            role: Role::Mafia(MafiaRole::Mafia),
+            role_name: "Мафия",
+            role_name_color: "red-950",
+            role_icon: "🔫",
+        }),
+        RoleInfo::Icon(IconRoleInfo{
+            role: Role::Mafia(MafiaRole::Citizen),
+            role_name: "Мирные",
+            role_name_color: "green-950",
+            role_icon: "✋",
+        }),
+    ];
+
+    let is_selected = move |role: &Role|{
+        selected_winners.get().contains(role)
+    };
+
+    let calculate_user_logs = move || {
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let users = game_ctx.users.get();
+
+        let mut logs = Vec::<UserLogs>::new();
+
+        for user in users.iter() {
+            let mut rounds = Vec::<String>::new();
+            for (index, roles) in user.history_by.iter() {
+                let index = index - 1;
+                let role = roles.iter().map(|role| {
+                    MAFIA_ROLES.iter().find(|r| r.get_role() == *role).unwrap().get_role_icon()
+                }).collect::<Vec<_>>().join(" ");
+                
+                // set role icons to rounds[index]
+                // index might be empty, we should create "" for it
+                if rounds.len() <= index {
+                    rounds.resize(index + 1, "".to_string());
+                }
+                rounds[index] = role;
+            }
+            // add choosed_by to last round
+            let role = user.choosed_by.iter().map(|role| {
+                MAFIA_ROLES.iter().find(|r| r.get_role() == *role).unwrap().get_role_icon()
+            }).collect::<Vec<_>>().join(" ");
+
+            rounds.push(role);
+
+            let winner = 
+                (selected_winners.get().contains(&Role::Mafia(MafiaRole::Maniac)) 
+                    && user.role.contains(&Role::Mafia(MafiaRole::Maniac)))
+                || (selected_winners.get().contains(&Role::Mafia(MafiaRole::Mafia)) 
+                    && user.role.contains(&Role::Mafia(MafiaRole::Mafia)))
+                || (selected_winners.get().contains(&Role::Mafia(MafiaRole::Citizen)) 
+                    && !user.role.contains(&Role::Mafia(MafiaRole::Mafia)) 
+                    && !user.role.contains(&Role::Mafia(MafiaRole::Maniac)));
+
+            let score = 0;
+
+            let role = if user.role.is_empty() {
+                "Мирный".to_string()
+            }else{
+                user.role.iter().map(|role| {
+                    MAFIA_ROLES.iter().find(|r| r.get_role() == *role).unwrap().get_role_name()
+                }).collect::<Vec<_>>().join(" • ")
+            };
+
+            let mut role_index = 6;
+            if user.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
+                role_index = 7;
+            }else if user.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
+                role_index = 8;
+            }else if user.role.contains(&Role::Mafia(MafiaRole::Detective)) {
+                role_index = 9;
+            }else if user.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
+                role_index = 10;
+            }else if user.role.contains(&Role::Mafia(MafiaRole::Doctor)) {
+                role_index = 11;
+            }
+
+            let best_player = false;
+
+            logs.push(UserLogs{
+                id: user.id.clone(),
+                name: user.name.clone(),
+                role,
+                role_index,
+                best_player,
+                score,
+                winner,
+                rounds,
+            });
+        }
+
+        logs
+    };
+
+    view!{
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <h2>"⭐ Выберите лучших игроков"</h2>
+            <div class="flex flex-col gap-1 w-full">
+            {roles.map(|role| {
+                let role_clone = role.get_role().clone();
+                view!{
+                    <button class=move ||
+                        format!("rounded-xl px-3 py-5 text-sm {}", if is_selected(
+                            &role.get_role()
+                        ) {
+                            format!("text-white {}", role.get_role_bg_color())
+                        } else {
+                            "bg-gray-200".to_string()
+                        })
+                        on:click=move|_|{
+                            selected_winners.update(|selected_winners|{
+                                if selected_winners.contains(&role_clone) {
+                                    selected_winners.remove(&role_clone);
+                                }else{
+                                    selected_winners.insert(role_clone);
+                                }
+                            });
+                        }
+                    >
+                        {role.get_role_name()}
+                    </button>
+                }
+            })}
+            </div>
+        </div>
+        <div class="flex flex-col relative overflow-auto px-4 -mx-4">
+            <h2>"🏆 Выберите кто победил"</h2>
+            <div class="flex flex-col gap-1 w-full">
+            {roles.map(|role| {
+                let role_clone = role.get_role().clone();
+                view!{
+                    <button class=move ||
+                        format!("rounded-xl px-3 py-5 text-sm {}", if is_selected(
+                            &role.get_role()
+                        ) {
+                            format!("text-white {}", role.get_role_bg_color())
+                        } else {
+                            "bg-gray-200".to_string()
+                        })
+                        on:click=move|_|{
+                            selected_winners.update(|selected_winners|{
+                                if selected_winners.contains(&role_clone) {
+                                    selected_winners.remove(&role_clone);
+                                }else{
+                                    selected_winners.insert(role_clone);
+                                }
+                            });
+                        }
+                    >
+                        {role.get_role_name()}
+                    </button>
+                }
+            })}
+            </div>
+        </div>
+        <div class="flex gap-2 w-full items-center">
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click={
+                    move |_| on_close()
+                }
+            >
+                "Назад"
+            </button>
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click={
+                    move |_| {
+                        rust_create_new_game_log(calculate_user_logs());
+
+                        // if selected_winners.get().is_empty() {
+                        //     if window().confirm_with_message("Вернуться в главное меню без победителей?").expect("REASON") {
+                        //         on_finish();
+                        //     }
+                        // }else{
+                            
+                        //     on_finish();
+                        // }
+                    }
+                }
+            >
+                "Закончить игру"
+            </button>
         </div>
     }
 }

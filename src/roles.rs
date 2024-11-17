@@ -66,7 +66,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => night.role_name,
             RoleInfo::Passive(passive) => passive.role_name,
             RoleInfo::Additional(passive) => passive.role_name,
-            _ => "",
+            RoleInfo::Icon(icon) => icon.role_name,
         }
     }
 
@@ -76,7 +76,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => format!("{}{}", "text-", night.role_name_color),
             RoleInfo::Passive(passive) => format!("{}{}", "text-", passive.role_name_color),
             RoleInfo::Additional(passive) => format!("{}{}", "text-", passive.role_name_color),
-            _ => "".to_string(),
+            RoleInfo::Icon(icon) => format!("{}{}", "text-", icon.role_name_color),
         }
     }
 
@@ -85,7 +85,7 @@ impl RoleInfo {
             RoleInfo::Night(night) => format!("bg-{}/50", night.role_name_color),
             RoleInfo::Passive(passive) => format!("bg-{}/50", passive.role_name_color),
             RoleInfo::Additional(passive) => format!("bg-{}/50", passive.role_name_color),
-            _ => "".to_string(),
+            RoleInfo::Icon(icon) => format!("bg-{}/50", icon.role_name_color),
         }
     }
 
@@ -176,6 +176,8 @@ impl PartialEq<Role> for AdditionalRoleInfo {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct IconRoleInfo {
     pub role: Role,
+    pub role_name: &'static str,
+    pub role_name_color: &'static str,
     pub role_icon: &'static str,
 }
 
