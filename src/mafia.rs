@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use crate::user::*;
 use crate::roles::*;
+use crate::GameContextHistory;
 use crate::GameState;
 use crate::GameContext;
 
@@ -386,13 +387,12 @@ fn UserRoleName(role: Role) -> impl IntoView {
 
 #[component]
 fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
-    let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
-    let set_context_history = use_context::<WriteSignal<Vec<GameContext>>>().expect("MafiaContext history not found");
-
     let role = role_info.get_role();
     let onclick_next_role = move |_| {
-        
-        //set_context_history.update(|history| history.push(ctx.clone()));
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+    
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>().expect("MafiaContext history not found");
+        set_context_history.update(|history| history.push(game_ctx.get_history()));
 
         match get_next_prepare_role(role) {
             Some(role_info) => game_ctx.game_state.set(GameState::Mafia(MafiaGameState::SetupRoles(role_info))),
@@ -404,11 +404,14 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     };
 
     let onclick_prev_role = move |_| {
-        // set_context_history.update(|history| {
-        //     if let Some(prev_ctx) = history.pop() {
-        //         set_game_state.set(prev_ctx);
-        //     }
-        // });
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>().expect("MafiaContext history not found");
+    
+        set_context_history.update(|history| {
+            if let Some(prev_ctx) = history.pop() {
+                game_ctx.set_history(prev_ctx);
+            }
+        });
     };
 
     view! {
@@ -547,21 +550,22 @@ fn NextTurnButtons<F>(onclick_next_role: F) -> impl IntoView
 where
     F: Fn() + 'static,
 {
-    let set_context_history = use_context::<WriteSignal<Vec<GameContext>>>().expect("MafiaContext history not found");
-
     let onclick_prev_role = move |_| {
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>().expect("MafiaContext history not found");
+    
         set_context_history.update(|history| {
             if let Some(prev_ctx) = history.pop() {
-                let game_state = use_context::<GameContext>().expect("MafiaContext not found");
-                //game_state.set(prev_ctx);
+                game_ctx.set_history(prev_ctx);
             }
         });
     };
 
     let onclick_next = move |_| {
-        let ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>().expect("MafiaContext history not found");
 
-        //set_context_history.update(|history| history.push(ctx.clone()));
+        set_context_history.update(|history| history.push(game_ctx.get_history()));
 
         onclick_next_role();
     };
