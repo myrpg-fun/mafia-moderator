@@ -168,7 +168,27 @@ export async function createNewUser(id, name) {
   await handleAuth();
 
   const values = [
-    [`'${id}`, String(name), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [
+      `'${id}`,
+      String(name),
+      0,
+      0,
+      0,
+      0,
+      `'0/0`,
+      `'0/0`,
+      `'0/0`,
+      `'0/0`,
+      `'0/0`,
+      `'0/0`,
+      0,
+      0,
+      0,
+      0,
+      `'0/0`,
+      `'0/0`,
+      0,
+    ],
   ];
 
   try {
@@ -186,8 +206,8 @@ export async function createNewUser(id, name) {
     const row = range.split(/\D+/im)[1];
 
     values[0][2] = `=D${row}+N${row}`;
-    values[0][3] = `='Бальная система'!$B$2*E${row}+'Бальная система'!$B$3*F${row}+'Бальная система'!$B$10*M${row}+'Бальная система'!$B$9*L${row}+'Бальная система'!$B$8*K${row}+'Бальная система'!$B$7*J${row}+'Бальная система'!$B$6*I${row}+'Бальная система'!$B$5*G${row}+'Бальная система'!$B$4*H${row}`;
-    values[0][13] = `='Бальная система'!$B$2*O${row}+'Бальная система'!$B$3*P${row}+'Бальная система'!$B$10*S${row}+'Бальная система'!$B$5*Q${row}+'Бальная система'!$B$4*R${row}`;
+    values[0][3] = `='Бальная система'!$B$2*E${row}+'Бальная система'!$B$3*F${row}+'Бальная система'!$B$10*M${row}+'Бальная система'!$B$9*VALUE(LEFT(L${row}, FIND("/", L${row}) - 1))+'Бальная система'!$B$8*VALUE(LEFT(K${row}, FIND("/", K${row}) - 1))+'Бальная система'!$B$7*VALUE(LEFT(J${row}, FIND("/", J${row}) - 1))+'Бальная система'!$B$6*VALUE(LEFT(I${row}, FIND("/", I${row}) - 1))+'Бальная система'!$B$5*VALUE(LEFT(G${row}, FIND("/", G${row}) - 1))+'Бальная система'!$B$4*VALUE(LEFT(H${row}, FIND("/", H${row}) - 1))`;
+    values[0][13] = `='Бальная система'!$B$2*O${row}+'Бальная система'!$B$3*P${row}+'Бальная система'!$B$10*S${row}+'Бальная система'!$B$5*VALUE(LEFT(Q${row}, FIND("/", Q${row}) - 1))+'Бальная система'!$B$4*VALUE(LEFT(R${row}, FIND("/", R${row}) - 1))`;
 
     const response2 = await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
@@ -277,21 +297,6 @@ export async function createNewGameLog(users) {
       },
     });
 
-    // Make header styles
-    const headerStyle = {
-      backgroundColor: {
-        red: 0.0,
-        green: 0.0,
-        blue: 0.0,
-      },
-      foregroundColor: {
-        red: 1.0,
-        green: 1.0,
-        blue: 1.0,
-      },
-      bold: true,
-    };
-
     const sheetId = response3.result.replies[0].addSheet.properties.sheetId;
 
     const response4 = await gapi.client.sheets.spreadsheets.batchUpdate({
@@ -307,11 +312,19 @@ export async function createNewGameLog(users) {
               },
               cell: {
                 userEnteredFormat: {
-                  backgroundColor: headerStyle.backgroundColor,
+                  backgroundColor: {
+                    red: 0.0,
+                    green: 0.0,
+                    blue: 0.0,
+                  },
                   horizontalAlignment: "CENTER",
                   textFormat: {
-                    foregroundColor: headerStyle.foregroundColor,
-                    bold: headerStyle.bold,
+                    foregroundColor: {
+                      red: 1.0,
+                      green: 1.0,
+                      blue: 1.0,
+                    },
+                    bold: true,
                   },
                 },
               },
@@ -379,13 +392,36 @@ export async function createNewGameLog(users) {
       const user = users.find((user) => user.id === userId);
       if (!user) continue;
 
-      // update 4th column with new game count
-      userSheet[4] = userSheet[4] * 1 + 1;
-      if (user.winner) {
-        // update 5th column with new game winner
-        userSheet[5] = userSheet[5] * 1 + 1;
-        // update Nth column with new game winner
-        userSheet[user.role_index] = userSheet[user.role_index] * 1 + 1;
+      try {
+        // update 4th column with new game count
+        userSheet[4] = userSheet[4] * 1 + 1;
+        if (user.winner) {
+          // update 5th column with new game winner
+          userSheet[5] = userSheet[5] * 1 + 1;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      try {
+        if (user.best_player) {
+          // update 12th column with game best player
+          userSheet[12] = userSheet[12] * 1 + 1;
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+      // update Nth column with new game winner
+      try {
+        const roleGames = userSheet[user.role_index].split("/");
+        roleGames[1] = roleGames[1] * 1 + 1;
+        if (user.winner) {
+          roleGames[0] = roleGames[0] * 1 + 1;
+        }
+        userSheet[user.role_index] = "'" + roleGames.join("/");
+      } catch (err) {
+        console.error(err);
       }
     }
 
@@ -398,7 +434,7 @@ export async function createNewGameLog(users) {
       },
     });
 
-    console.log("Successfully added new user:", response6);
+    console.log("Successfully updated:", response6);
   } catch (err) {
     console.error("Error adding new user:", err);
   }

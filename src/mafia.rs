@@ -178,6 +178,7 @@ pub fn MafiaGameView() -> impl IntoView {
 #[component]
 fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn() -> () + Clone + 'static) -> impl IntoView{
     let selected_winners = create_rw_signal(HashSet::<Role>::new());
+    let selected_users = create_rw_signal(HashSet::<String>::new());
 
     let roles = [
         RoleInfo::Icon(IconRoleInfo{
@@ -209,6 +210,8 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
         let users = game_ctx.users.get();
 
         let mut logs = Vec::<UserLogs>::new();
+
+        let best_players = selected_users.get();
 
         for user in users.iter() {
             let mut rounds = Vec::<String>::new();
@@ -251,20 +254,21 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
                 }).collect::<Vec<_>>().join(" • ")
             };
 
-            let mut role_index = 6;
-            if user.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
-                role_index = 7;
+            let role_index = if user.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
+                7
             }else if user.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
-                role_index = 8;
+                8
             }else if user.role.contains(&Role::Mafia(MafiaRole::Detective)) {
-                role_index = 9;
+                9
             }else if user.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
-                role_index = 10;
+                10
             }else if user.role.contains(&Role::Mafia(MafiaRole::Doctor)) {
-                role_index = 11;
-            }
+                11
+            }else{
+                6
+            };
 
-            let best_player = false;
+            let best_player = best_players.contains(&user.id);
 
             logs.push(UserLogs{
                 id: user.id.clone(),
@@ -281,45 +285,66 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
         logs
     };
 
+    let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
+
+    let users = move || {
+        mafia_context.users.get()
+    };
+
     view!{
-        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+        <div class="flex-1 flex flex-col gap-1 relative overflow-auto px-4 -mx-4">
             <h2>"⭐ Выберите лучших игроков"</h2>
-            <div class="flex flex-col gap-1 w-full">
-            {roles.map(|role| {
-                let role_clone = role.get_role().clone();
-                view!{
-                    <button class=move ||
-                        format!("rounded-xl px-3 py-5 text-sm {}", if is_selected(
-                            &role.get_role()
-                        ) {
-                            format!("text-white {}", role.get_role_bg_color())
-                        } else {
-                            "bg-gray-200".to_string()
-                        })
-                        on:click=move|_|{
-                            selected_winners.update(|selected_winners|{
-                                if selected_winners.contains(&role_clone) {
-                                    selected_winners.remove(&role_clone);
-                                }else{
-                                    selected_winners.insert(role_clone);
+            <div class="grid grid-cols-3 gap-1">
+                <For
+                    each=users
+                    key=|user| format!("{}_{}", user.id.clone(), user.role.len())
+                    children=move |user| {
+                        let user_clone = user.clone();
+
+                        view!{
+                            <UserSelectRole
+                                user=user_clone
+                                disabled=false
+                                is_selected=move |u| selected_users.get().contains(&u.id)
+                                highlighted=false
+                                killed=false
+                                on:click=move |_| {
+                                    selected_users.update(|users| {
+                                        if users.contains(&user.id) {
+                                            users.remove(&user.id);
+                                        } else {
+                                            users.insert(user.id.clone());
+                                        }
+                                    });
                                 }
-                            });
+                            />
                         }
-                    >
-                        {role.get_role_name()}
-                    </button>
-                }
-            })}
+                    }
+                />
             </div>
         </div>
-        <div class="flex flex-col relative overflow-auto px-4 -mx-4">
+        <div class="flex flex-col gap-1 relative px-4 -mx-4">
             <h2>"🏆 Выберите кто победил"</h2>
-            <div class="flex flex-col gap-1 w-full">
+            <button class=move ||
+                format!("rounded-xl px-3 py-2 text-sm {}", if selected_winners.get().is_empty() {
+                    "text-white bg-red-800/80".to_string()
+                } else {
+                    "bg-gray-200".to_string()
+                })
+                on:click=move|_|{
+                    selected_winners.update(|selected_winners|{
+                        selected_winners.clear();
+                    });
+                }
+            >
+                "Не сохранять результаты"
+            </button>
+            <div class="flex flex-row gap-1 justify-stretch w-full">
             {roles.map(|role| {
                 let role_clone = role.get_role().clone();
                 view!{
                     <button class=move ||
-                        format!("rounded-xl px-3 py-5 text-sm {}", if is_selected(
+                        format!("flex-1 rounded-xl px-3 py-5 text-sm {}", if is_selected(
                             &role.get_role()
                         ) {
                             format!("text-white {}", role.get_role_bg_color())
@@ -355,16 +380,15 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
                 class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
                 on:click={
                     move |_| {
-                        rust_create_new_game_log(calculate_user_logs());
-
-                        // if selected_winners.get().is_empty() {
-                        //     if window().confirm_with_message("Вернуться в главное меню без победителей?").expect("REASON") {
-                        //         on_finish();
-                        //     }
-                        // }else{
+                        if selected_winners.get().is_empty() {
+                            if window().confirm_with_message("Вернуться в главное меню без победителей?").expect("REASON") {
+                                on_finish();
+                            }
+                        }else{
+                            rust_create_new_game_log(calculate_user_logs());
                             
-                        //     on_finish();
-                        // }
+                            on_finish();
+                        }
                     }
                 }
             >
