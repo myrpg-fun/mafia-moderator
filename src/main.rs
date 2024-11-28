@@ -1,3 +1,5 @@
+use std::vec;
+
 use itertools::Itertools;
 use leptos::*;
 mod mafia;
@@ -7,7 +9,7 @@ mod werewolf;
 
 use mafia::*;
 use roles::Role;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use user::*;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, js_sys};
@@ -59,13 +61,90 @@ pub enum GameState<'a> {
     Werewolf(WerewolfGameState<'a>),
 }
 
+impl Serialize for GameState<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        match self {
+            GameState::SetupNames => ("SetupNames", "", Role::None).serialize(serializer),
+            GameState::Mafia(state) => match state {
+                MafiaGameState::Day => ("Mafia", "Day", Role::None).serialize(serializer),
+                MafiaGameState::Night(role) => {
+                    ("Mafia", "Night", role.get_role()).serialize(serializer)
+                }
+                MafiaGameState::SetupRoles(role) => {
+                    ("Mafia", "SetupRoles", role.get_role()).serialize(serializer)
+                }
+            },
+            GameState::Werewolf(state) => match state {
+                WerewolfGameState::Day => ("Werewolf", "Day", Role::None).serialize(serializer),
+                WerewolfGameState::Night(role) => {
+                    ("Werewolf", "Night", role.get_role()).serialize(serializer)
+                }
+                WerewolfGameState::SelectActiveRoles => {
+                    ("Werewolf", "SelectActiveRoles", Role::None).serialize(serializer)
+                }
+                WerewolfGameState::End => ("Werewolf", "End", Role::None).serialize(serializer),
+                WerewolfGameState::SetupRoles(role) => {
+                    ("Werewolf", "SetupRoles", role.get_role()).serialize(serializer)
+                }
+            },
+        }
+    }
+}
+
+impl<'de, 'a> Deserialize<'de> for GameState<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<GameState<'a>, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let value = serde::de::Deserialize::deserialize(deserializer)?;
+
+        match value {
+            ("SetupNames", "", Role::None) => Ok(GameState::SetupNames),
+            ("Mafia", "Day", Role::None) => Ok(GameState::Mafia(MafiaGameState::Day)),
+            ("Mafia", "Night", role) => MAFIA_ROLES
+                .iter()
+                .find(|r| r.get_role() == role)
+                .map_or(Err(serde::de::Error::custom("invalid value")), |role| {
+                    Ok(GameState::Mafia(MafiaGameState::Night(role)))
+                }),
+            ("Mafia", "SetupRoles", role) => MAFIA_ROLES
+                .iter()
+                .find(|r| r.get_role() == role)
+                .map_or(Err(serde::de::Error::custom("invalid value")), |role| {
+                    Ok(GameState::Mafia(MafiaGameState::SetupRoles(role)))
+                }),
+            ("Werewolf", "Day", Role::None) => Ok(GameState::Werewolf(WerewolfGameState::Day)),
+            ("Werewolf", "Night", role) => WEREWOLF_ROLES
+                .iter()
+                .find(|r| r.get_role() == role)
+                .map_or(Err(serde::de::Error::custom("invalid value")), |role| {
+                    Ok(GameState::Werewolf(WerewolfGameState::Night(role)))
+                }),
+            ("Werewolf", "SelectActiveRoles", Role::None) => {
+                Ok(GameState::Werewolf(WerewolfGameState::SelectActiveRoles))
+            }
+            ("Werewolf", "End", Role::None) => Ok(GameState::Werewolf(WerewolfGameState::End)),
+            ("Werewolf", "SetupRoles", role) => WEREWOLF_ROLES
+                .iter()
+                .find(|r| r.get_role() == role)
+                .map_or(Err(serde::de::Error::custom("invalid value")), |role| {
+                    Ok(GameState::Werewolf(WerewolfGameState::SetupRoles(role)))
+                }),
+            _ => Err(serde::de::Error::custom("invalid value")),
+        }
+    }
+}
+
 impl Default for GameState<'_> {
     fn default() -> Self {
         GameState::SetupNames
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct GameContextHistory {
     users: Vec<Player>,
     round: usize,
@@ -79,25 +158,45 @@ struct GameContext {
     game_state: RwSignal<GameState<'static>>,
 }
 
+const STORAGE_LAST_STATE: &str = "last_state";
+
 impl Default for GameContext {
     fn default() -> Self {
-        let starting_users = window()
-            .local_storage()
-            .ok()
-            .flatten()
-            .and_then(|storage| {
-                storage
-                    .get_item(STORAGE_SELECTED_USERS_KEY)
-                    .ok()
-                    .flatten()
-                    .and_then(|value| serde_json::from_str::<Vec<(String, String)>>(&value).ok())
-            })
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(id, name)| Player::new_player(id, name));
+        // let starting_users = window()
+        //     .local_storage()
+        //     .ok()
+        //     .flatten()
+        //     .and_then(|storage| {
+        //         storage
+        //             .get_item(STORAGE_SELECTED_USERS_KEY)
+        //             .ok()
+        //             .flatten()
+        //             .and_then(|value| serde_json::from_str::<Vec<(String, String)>>(&value).ok())
+        //     })
+        //     .unwrap_or_default()
+        //     .into_iter()
+        //     .map(|(id, name)| Player::new_player(id, name));
+
+        // load from local storage
+        let local_storage = window().local_storage().ok().flatten();
+        let starting_users = local_storage.and_then(|storage| {
+            storage
+                .get_item(STORAGE_LAST_STATE)
+                .ok()
+                .flatten()
+                .and_then(|value| serde_json::from_str::<GameContextHistory>(&value).ok())
+        });
+
+        if let Some(history) = starting_users {
+            return Self {
+                users: create_rw_signal(history.users),
+                round: create_rw_signal(history.round),
+                game_state: create_rw_signal(history.game_state),
+            };
+        }
 
         Self {
-            users: create_rw_signal(starting_users.collect()),
+            users: create_rw_signal(vec![]),
             round: create_rw_signal(0),
             game_state: create_rw_signal(GameState::SetupNames),
         }
@@ -105,6 +204,18 @@ impl Default for GameContext {
 }
 
 impl GameContext {
+    pub fn store_context_to_local_storage(&self) {
+        let context = self.get_history();
+
+        let json = serde_json::to_string(&context).expect("couldn't serialize GameContext");
+
+        if let Ok(Some(storage)) = window().local_storage() {
+            if storage.set_item(STORAGE_LAST_STATE, &json).is_err() {
+                //log::error!("error while trying to set item in localStorage");
+            }
+        }
+    }
+
     pub fn get_history(&self) -> GameContextHistory {
         GameContextHistory {
             users: self.users.get(),
@@ -227,19 +338,14 @@ fn StartScreen() -> impl IntoView {
     provide_context(context_history);
     provide_context(set_context_history);
 
+    let game_context_clone = game_context.clone();
+
     create_effect(move |_| {
-        if let Ok(Some(storage)) = window().local_storage() {
-            let user_names = &game_context
-                .users
-                .get()
-                .iter()
-                .map(|u| (u.id.clone(), u.name.clone()))
-                .collect::<Vec<_>>();
-            let json = serde_json::to_string(user_names).expect("couldn't serialize Users");
-            if storage.set_item(STORAGE_SELECTED_USERS_KEY, &json).is_err() {
-                //log::error!("error while trying to set item in localStorage");
-            }
-        }
+        // game_context_clone.users.get();
+        // game_context_clone.round.get();
+        // game_context_clone.game_state.get();
+
+        game_context_clone.store_context_to_local_storage();
     });
 
     let game_state_view = move || match game_context.game_state.get() {

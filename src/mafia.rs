@@ -212,9 +212,11 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
         let mut logs = Vec::<UserLogs>::new();
 
         let best_players = selected_users.get();
+        let lastRound = game_ctx.round.get();
 
         for user in users.iter() {
             let mut rounds = Vec::<String>::new();
+            rounds.resize(lastRound+1, "".to_string());
             for (index, roles) in user.history_by.iter() {
                 let index = index - 1;
                 let role = roles.iter().map(|role| {
@@ -223,17 +225,18 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
                 
                 // set role icons to rounds[index]
                 // index might be empty, we should create "" for it
-                if rounds.len() <= index {
-                    rounds.resize(index + 1, "".to_string());
-                }
+                logging::log!("index: {} {} {} {}", user.name, index, lastRound, role);
                 rounds[index] = role;
+                logging::log!("!");
             }
             // add choosed_by to last round
             let role = user.choosed_by.iter().map(|role| {
                 MAFIA_ROLES.iter().find(|r| r.get_role() == *role).unwrap().get_role_icon()
             }).collect::<Vec<_>>().join(" ");
 
-            rounds.push(role);
+            if !role.is_empty() {
+                rounds[lastRound] = format!("{} {}", rounds[lastRound], role);
+            }
 
             let winner = 
                 (selected_winners.get().contains(&Role::Mafia(MafiaRole::Maniac)) 
@@ -696,7 +699,7 @@ fn SelectUsersForVote(
     let is_selected = move |user: &Player| selected_users.get().contains(&user.name);
 
     view! {
-        <div class="text-sm">"Осталось игроков: "{users_alive_len()}</div>
+        <div class="text-sm">"Осталось игроков: "{users_alive_len}</div>
         <div class="grid grid-cols-3 gap-1">
             <For
                 each=users

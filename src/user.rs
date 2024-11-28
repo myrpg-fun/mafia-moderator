@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
 use web_sys::js_sys::*;
 
 use crate::roles::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
     pub id: String,
     pub name: String,
@@ -147,7 +148,12 @@ impl From<Array> for UserSheetInfo {
         UserSheetInfo {
             id: user_info.get(0).as_string().unwrap(),
             name: user_info.get(1).as_string().unwrap(),
-            score: user_info.get(2).as_string().unwrap().parse().unwrap(),
+            score: user_info
+                .get(2)
+                .as_string()
+                .unwrap_or("0".to_string())
+                .parse()
+                .unwrap_or(0),
             mafia: UserMafiaSheetInfo {
                 score: 0,
                 games: 0,
