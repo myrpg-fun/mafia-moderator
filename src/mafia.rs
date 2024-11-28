@@ -20,6 +20,7 @@ pub enum MafiaRole {
     Detective,
     Maniac,
     Prostitute,
+    Priest,
 }
 
 const _MAFIA_COLORS: [&str; 10] = [
@@ -27,7 +28,7 @@ const _MAFIA_COLORS: [&str; 10] = [
     "bg-red-950", "bg-blue-950", "bg-gray-950", "bg-green-950", "bg-purple-950",
 ];
 
-pub const MAFIA_ROLES: [RoleInfo; 6] = [
+pub const MAFIA_ROLES: [RoleInfo; 7] = [
     RoleInfo::Icon(IconRoleInfo{
         role: Role::Mafia(MafiaRole::Citizen),
         role_name: "Мирные",
@@ -82,6 +83,16 @@ pub const MAFIA_ROLES: [RoleInfo; 6] = [
         role_icon: "💋",
         prepare_description: "Выберите игрока Проститутку",
         night_description: "К кому зайдет Проститутка?",
+        targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Mafia(MafiaRole::Priest),
+        check_role: None,
+        role_name: "Священник",
+        role_name_color: "yellow-950",
+        role_icon: "🙏",
+        prepare_description: "Выберите игрока Священника",
+        night_description: "Кого проверит Священник?",
         targeting_rules: NightTargetingRules::NotTheSame,
     }),
 ];
@@ -225,9 +236,7 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
                 
                 // set role icons to rounds[index]
                 // index might be empty, we should create "" for it
-                logging::log!("index: {} {} {} {}", user.name, index, lastRound, role);
                 rounds[index] = role;
-                logging::log!("!");
             }
             // add choosed_by to last round
             let role = user.choosed_by.iter().map(|role| {
@@ -984,6 +993,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
 
     let is_highlighted = move |user: &Player| {
         role_info.get_role() == Role::Mafia(MafiaRole::Detective) && user.role.contains(&&Role::Mafia(MafiaRole::Mafia))
+        || role_info.get_role() == Role::Mafia(MafiaRole::Priest) && user.role.contains(&&Role::Mafia(MafiaRole::Maniac))
     };
 
     view! {
