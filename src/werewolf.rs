@@ -651,7 +651,7 @@ fn SelectWinners(
                         }else{
                             rust_create_new_game_log(calculate_user_logs(), false);
 
-                            //on_finish();
+                            on_finish();
                         }
                     }
                 }
@@ -1412,7 +1412,6 @@ fn DayVote() -> impl IntoView {
 #[component]
 fn Timer() -> impl IntoView {
     let (time, set_time) = create_signal(0);
-    let audio_ref = create_node_ref::<Audio>();
 
     let Pausable {
         pause,
@@ -1445,9 +1444,8 @@ fn Timer() -> impl IntoView {
             pause();
 
             // play alarm sound
-            if let Some(audio) = audio_ref.get() {
-                let _ = audio.play().expect("Couldn't play audio");
-            }
+            let audio = web_sys::HtmlAudioElement::new_with_src("assets/alarm.mp3").unwrap();
+            let _ = audio.play().unwrap();
         }
     });
 
@@ -1460,9 +1458,6 @@ fn Timer() -> impl IntoView {
 
     view! {
         <div class="flex items-stretch justify-center gap-1">
-            <audio id="alarm" src="assets/alarm.mp3" preload="auto"
-                _ref=audio_ref
-            ></audio>
             <div class="text-4xl">"⏰"</div>
             <div class="text-4xl">{get_time}</div>
             <button class="flex-1 px-1 py-1 text-sm bg-gray-200 rounded-full" on:click={
