@@ -1,5 +1,3 @@
-use ::core::time;
-use html::Audio;
 use itertools::Itertools;
 use leptos_use::utils::*;
 use leptos_use::*;
@@ -7,11 +5,9 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::hash::Hash;
-use web_sys::HtmlAudioElement;
 
 use crate::roles::*;
 use crate::rust_create_new_game_log;
-use crate::rust_create_new_game_log_2;
 use crate::user::*;
 use crate::GameContext;
 use crate::GameContextHistory;
@@ -1445,8 +1441,10 @@ fn Timer() -> impl IntoView {
             pause();
 
             // play alarm sound
-            let audio = web_sys::HtmlAudioElement::new_with_src("assets/alarm.mp3").unwrap();
-            let _ = audio.play().unwrap();
+            let audio = web_sys::HtmlAudioElement::new_with_src("assets/alarm.mp3");
+            if let Ok(audio) = audio {
+                let _ = audio.play().unwrap();
+            }
         }
     });
 
