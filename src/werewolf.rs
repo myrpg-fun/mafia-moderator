@@ -8,6 +8,7 @@ use std::hash::Hash;
 
 use crate::roles::*;
 use crate::rust_create_new_game_log;
+use crate::user;
 use crate::user::*;
 use crate::GameContext;
 use crate::GameContextHistory;
@@ -259,6 +260,14 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
         prepare_description: "Выберите игрока Mad Bomber",
     }),
 ];
+
+#[derive(Clone, Debug, PartialEq)]
+enum WerewolfLogs {
+    Mayor(Player),
+    Cursed(Player),
+    LostHeart(Player),
+    Killed(Player, HashSet<Role>),
+}
 
 #[derive(Clone, Copy, Debug)]
 pub enum WerewolfGameState<'a> {
@@ -935,9 +944,14 @@ fn UserSelectRole(
                 main_class
             }
         >
-            {move || if user.was_killed {
+            {move || if user.was_killed && !user.is_alive {
                 view! {
                     <div class="absolute text-[0.5rem] right-2 top-[0.15rem]">"❌"</div>
+                }.into_view()
+            }else if user.was_killed && user.is_alive {
+                view! {
+                    <div class="absolute text-[0.5rem] right-2 top-[0.15rem]">"💛"</div>
+                    <div class="absolute text-[0.3rem] right-[0.6rem] top-[0.2rem]">"❌"</div>
                 }.into_view()
             }else{
                 "".into_view()
@@ -973,6 +987,46 @@ fn UserRoleNames(role: HashSet<Role>) -> impl IntoView {
                 }
             }}
         </div>
+    }
+}
+
+#[component]
+fn UserKilledBy(killed_by: HashSet<Role>) -> impl IntoView {
+    view! {
+        {move || {
+            let killed_by = killed_by.clone().into_iter().filter(|role| {
+                // werewolf or witch or revealer or hunteress
+                matches!(
+                    role,
+                    Role::Werewolf(WerewolfRole::Werewolf)
+                        | Role::Werewolf(WerewolfRole::WitchPoison)
+                        | Role::Werewolf(WerewolfRole::Revealer)
+                        | Role::Werewolf(WerewolfRole::Huntress)
+                )
+            }).collect::<Vec<_>>();
+
+            if killed_by.is_empty() {
+                view!{
+                    ""
+                }.into_view()
+            }else{
+                view!{
+                    " (by "
+                    {move || killed_by.iter().map(|role| {
+                        let role = *role;
+
+                        view!{
+                            <UserRoleName role=role />
+                        }.into_view()
+                    }).intersperse_with(|| {
+                        // Add separator between the roles
+                        view! { ", " }.into_view() // Assuming there's a Separator component; alternatively, use raw HTML
+                    })
+                    .collect::<Vec<_>>().into_view()}
+                    ")"
+                }.into_view()
+            }
+        }}
     }
 }
 
@@ -1341,6 +1395,39 @@ fn DayVote() -> impl IntoView {
         }
     });
 
+    let game_log: Memo<Vec<WerewolfLogs>> = create_memo(move |_| {
+        let mut log = Vec::<WerewolfLogs>::new();
+
+        let users = game_ctx.users.get().into_iter();
+
+        users.clone().for_each(|user| {
+            if user.was_killed && !user.is_alive {
+                log.push(WerewolfLogs::Killed(user.clone(), user.choosed_by.clone()));
+            }
+        });
+
+        users.clone().for_each(|user| {
+            if user.role.contains(&Role::Werewolf(WerewolfRole::ToughGuy))
+                && user.is_alive
+                && user.was_killed
+            {
+                log.push(WerewolfLogs::LostHeart(user.clone()));
+            }
+        });
+
+        users.for_each(|user| {
+            if user
+                .additional_role
+                .contains(&Role::Werewolf(WerewolfRole::Mayor))
+                && user.is_alive
+            {
+                log.push(WerewolfLogs::Mayor(user.clone()));
+            }
+        });
+
+        log
+    });
+
     let is_highlighted = move |user: &Player| highlighted_player.get().contains(&user.name);
 
     view! {
@@ -1384,7 +1471,7 @@ fn DayVote() -> impl IntoView {
             }else{
                 view! {
                     <h2>"Кого мирные жители убъют этим Днем?"</h2>
-                    <p class="opacity-50 text-sm">"Если убили Hunter или Mad Bomber, выберите несколько целей"</p>
+                    <DisplayLogs logs=game_log />
                     <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
                         <div class="flex-1"></div>
                         <div class="flex flex-col gap-1 w-full pb-0.5">
@@ -1403,6 +1490,52 @@ fn DayVote() -> impl IntoView {
                 }.into_view()
             }
         }
+    }
+}
+
+#[component]
+fn DisplayLogs(logs: Memo<Vec<WerewolfLogs>>) -> impl IntoView {
+    view! {
+        <div class="flex flex-col gap-1 relative text-xs">
+            {move || logs.get().iter().map(
+                |log| {
+                    match log {
+                        WerewolfLogs::Killed(user, killed_by) => {
+                            let user = user.clone();
+                            view!{
+                                <div class="w-full flex items-center justify-start gap-1 text-gray-500">
+                                    "❌"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span><UserRoleNames role=user.role />" убит"<UserKilledBy killed_by=killed_by.clone() />"."
+                                </div>
+                            }.into_view()
+                        },
+                        WerewolfLogs::Mayor(user) => {
+                            let user = user.clone();
+                            view!{
+                                <div class="w-full flex items-center justify-start gap-1 text-gray-500">
+                                    "🎖️"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"мэр."
+                                </div>
+                            }.into_view()
+                        },
+                        WerewolfLogs::Cursed(user) => {
+                            let user = user.clone();
+                            view!{
+                                <div class="w-full flex items-center justify-start gap-1 text-gray-500">
+                                    "😈"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"Cursed."
+                                </div>
+                            }.into_view()
+                        },
+                        WerewolfLogs::LostHeart(user) => {
+                            let user = user.clone();
+                            view!{
+                                <div class="w-full flex items-center justify-start gap-1 text-gray-500">
+                                    "💔"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"потеряла жизнь."
+                                </div>
+                            }.into_view()
+                        }
+                    }
+                }
+            ).collect::<Vec<_>>().into_view()}
+        </div>
     }
 }
 
@@ -1688,6 +1821,7 @@ fn calculate_night_kills(users: &mut [Player]) {
         for role in check_protection {
             if user.additional_role.contains(role) {
                 user.additional_role.remove(role);
+                user.was_killed = true;
                 return;
             }
         }
@@ -1727,7 +1861,16 @@ fn calculate_night_kills(users: &mut [Player]) {
                 ],
             ) {
                 if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed)) {
-                    user.role.insert(Role::Werewolf(WerewolfRole::Werewolf));
+                    // Priest check
+                    if user
+                        .additional_role
+                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                    {
+                        user.additional_role
+                            .remove(&Role::Werewolf(WerewolfRole::Priest));
+                    } else {
+                        user.role.insert(Role::Werewolf(WerewolfRole::Werewolf));
+                    }
                 } else {
                     kill_user(
                         user,
@@ -1936,10 +2079,38 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
         }
     };
 
+    let game_log: Memo<Vec<WerewolfLogs>> = create_memo(move |_| {
+        let mut log = Vec::<WerewolfLogs>::new();
+
+        let users = game_ctx.users.get().into_iter();
+
+        if role_info.get_role() == Role::Werewolf(WerewolfRole::Werewolf) {
+            users.for_each(|user| {
+                if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed))
+                    && user.is_alive
+                    && !user
+                        .choosed_by
+                        .contains(&Role::Werewolf(WerewolfRole::Bodyguard))
+                    && !user
+                        .choosed_by
+                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                    && !user
+                        .additional_role
+                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                {
+                    log.push(WerewolfLogs::Cursed(user.clone()));
+                }
+            });
+        }
+
+        log
+    });
+
     view! {
         <h2>
             {night_description}
         </h2>
+        <DisplayLogs logs=game_log />
         <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
