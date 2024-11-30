@@ -82,8 +82,13 @@ async function checkStoredToken() {
 
   // Validate token by making a request
   try {
-    await gapi.client.sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID, // Use an actual, accessible spreadsheet ID
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Игроки!A1:A1",
+      valueInputOption: "USER_ENTERED", // Values are not parsed, they are input as they are
+      resource: {
+        values: [[]],
+      },
     });
 
     return true;
@@ -238,7 +243,15 @@ export async function createNewUser(id, name) {
 
 // {name: "Игрок 1", id: "001", role: "Мафия", score: 0, winner: bool, rounds: ["", "", "", "", ""]}
 export async function createNewGameLog(users, isMafia) {
+  const results = [];
+
+  console.log("createNewGameLog 1");
+  results.push("createNewGameLog 1");
+
   await handleAuth();
+
+  console.log("createNewGameLog 2");
+  results.push("createNewGameLog 2");
 
   try {
     // calculate current date minus 10 hours
@@ -253,6 +266,9 @@ export async function createNewGameLog(users, isMafia) {
     const response = await gapi.client.sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
     });
+
+    console.log("createNewGameLog 3");
+    results.push("createNewGameLog 3");
 
     const sheets = response.result.sheets;
     const gameNamePrefix = "Игра " + currentDay;
@@ -480,6 +496,9 @@ export async function createNewGameLog(users, isMafia) {
       });
     }
 
+    console.log("createNewGameLog 4");
+    results.push("createNewGameLog 4");
+
     // calculate max round numbers from users array
     const maxRounds = Math.max(...users.map((user) => user.rounds.length));
 
@@ -530,6 +549,9 @@ export async function createNewGameLog(users, isMafia) {
       },
     });
 
+    console.log("createNewGameLog 5");
+    results.push("createNewGameLog 5");
+
     const response2 = await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
       range: `${newSheetTitle}!A1:Z`,
@@ -538,6 +560,9 @@ export async function createNewGameLog(users, isMafia) {
         values,
       },
     });
+
+    console.log("createNewGameLog 6");
+    results.push("createNewGameLog 6");
 
     const sheetId = response3.result.replies[0].addSheet.properties.sheetId;
 
@@ -659,11 +684,17 @@ export async function createNewGameLog(users, isMafia) {
       },
     });
 
+    console.log("createNewGameLog 7");
+    results.push("createNewGameLog 7");
+
     // Update day sheet with new game
     const response5 = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${daySheetTitle}!A2:Z`,
     });
+
+    console.log("createNewGameLog 8");
+    results.push("createNewGameLog 8");
 
     const daySheetValues = response5.result.values || [];
     if (!daySheetValues) {
@@ -750,6 +781,9 @@ export async function createNewGameLog(users, isMafia) {
       },
     });
 
+    console.log("createNewGameLog 9");
+    results.push("createNewGameLog 9");
+
     // Fetch all users
     const response51 = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -825,8 +859,14 @@ export async function createNewGameLog(users, isMafia) {
       },
     });
 
+    console.log("createNewGameLog 10");
+    results.push("createNewGameLog 10");
+
     console.log("Successfully updated:", response6);
   } catch (err) {
     console.error("Error adding new user:", err);
+    results.push("createNewGameLog error: " + err);
   }
+
+  return results;
 }
