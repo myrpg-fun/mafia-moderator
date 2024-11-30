@@ -82,8 +82,13 @@ async function checkStoredToken() {
 
   // Validate token by making a request
   try {
-    await gapi.client.sheets.spreadsheets.get({
-      spreadsheetId: SPREADSHEET_ID, // Use an actual, accessible spreadsheet ID
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: "Игроки!A1:A1",
+      valueInputOption: "USER_ENTERED", // Values are not parsed, they are input as they are
+      resource: {
+        values: [[]],
+      },
     });
 
     return true;

@@ -11,6 +11,7 @@ use web_sys::HtmlAudioElement;
 
 use crate::roles::*;
 use crate::rust_create_new_game_log;
+use crate::rust_create_new_game_log_2;
 use crate::user::*;
 use crate::GameContext;
 use crate::GameContextHistory;
@@ -462,7 +463,7 @@ fn SelectWinners(
             let mut rounds = Vec::<String>::new();
             rounds.resize(lastRound + 1, "".to_string());
             for (index, roles) in user.history_by.iter() {
-                let index = index - 1;
+                let index = index.saturating_sub(1);
                 let role = roles
                     .iter()
                     .map(|role| {
