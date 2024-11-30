@@ -1395,7 +1395,7 @@ fn DayVote() -> impl IntoView {
         }
     });
 
-    let game_log: Memo<Vec<WerewolfLogs>> = create_memo(move |_| {
+    let game_log = create_memo(move |_| {
         let mut log = Vec::<WerewolfLogs>::new();
 
         let users = game_ctx.users.get().into_iter();
