@@ -1,14 +1,21 @@
+use ::core::time;
+use html::Audio;
 use itertools::Itertools;
+use leptos_use::utils::*;
+use leptos_use::*;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::hash::Hash;
+use web_sys::HtmlAudioElement;
 
 use crate::roles::*;
+use crate::rust_create_new_game_log;
 use crate::user::*;
 use crate::GameContext;
 use crate::GameContextHistory;
 use crate::GameState;
+use crate::UserLogs;
 use leptos::*;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -19,7 +26,7 @@ pub enum WerewolfRole {
     Minion,
     DireWolf,
     // LoneWolf,
-    // WolfCub,
+    WolfCub,
     Cursed,
     Bodyguard,
     Priest,
@@ -39,14 +46,15 @@ pub enum WerewolfRole {
     Lovers,
     // Doppelganger,
     // AlphaWolf,
-    // MadBomber,
+    MadBomber,
     //*** TODO:
     Revealer,
+    VillageIdiot,
     // ApprenticeSeer,
     // AuraSeer,
 }
 
-const _WEREWOLF_COLORS: [&str; 10] = [
+const _WEREWOLF_COLORS: [&str; 12] = [
     "text-red-950",
     "text-blue-950",
     "text-gray-950",
@@ -57,9 +65,11 @@ const _WEREWOLF_COLORS: [&str; 10] = [
     "bg-gray-950/50",
     "bg-green-950/50",
     "bg-purple-950/50",
+    "ring-red-600/50",
+    "ring-blue-600/50",
 ];
 
-pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Icon(IconRoleInfo {
         role: Role::Werewolf(WerewolfRole::Villager),
         role_name: "Villagers",
@@ -106,10 +116,10 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
     }),
     RoleInfo::Additional(AdditionalRoleInfo {
         role: Role::Werewolf(WerewolfRole::DireWolf),
-        role_name: "Dire Wolf",
+        role_name: "Lone Wolf",
         role_name_color: "red-950",
         role_icon: "💙",
-        prepare_description: "Поставте сердечки игроку Dire Wolf и в кого он влюблен",
+        prepare_description: "Поставте сердечки игроку Lone Wolf и в кого он влюблен",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Cursed),
@@ -143,7 +153,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Seer),
         check_role: None,
         role_name: "Seer",
-        role_name_color: "blue-950",
+        role_name_color: "green-950",
         role_icon: "🔍",
         prepare_description: "Выберите игрока Seer",
         night_description: "Кого проверит Seer?",
@@ -153,7 +163,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Spellcaster),
         check_role: None,
         role_name: "Spellcaster",
-        role_name_color: "blue-950",
+        role_name_color: "green-950",
         role_icon: "🤐",
         prepare_description: "Выберите игрока Spellcaster",
         night_description: "Кого заглушил Spellcaster?",
@@ -163,7 +173,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Huntress),
         check_role: None,
         role_name: "Huntress",
-        role_name_color: "blue-950",
+        role_name_color: "green-950",
         role_icon: "🏹",
         prepare_description: "Выберите игрока Huntress",
         night_description: "Кого убъет Huntress?",
@@ -173,27 +183,19 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         role: Role::Werewolf(WerewolfRole::Revealer),
         check_role: None,
         role_name: "Revealer",
-        role_name_color: "blue-950",
+        role_name_color: "green-950",
         role_icon: "🔦",
         prepare_description: "Выберите игрока Revealer",
-        night_description: "Кого убъет Revealer?",
+        night_description: "Кого проверит Revealer?",
         targeting_rules: NightTargetingRules::NotTheSame,
     }),
     RoleInfo::Passive(PassiveRoleInfo {
-        role: Role::Werewolf(WerewolfRole::Mason),
-        role_name: "Mason",
-        role_icon: "",
-        additional_role: None,
-        role_name_color: "purple-950",
-        prepare_description: "Выберите игроков Mason",
-    }),
-    RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Lovers),
-        role_name: "Lovers",
+        role_name: "Mason",
         role_icon: "❤️",
         additional_role: None,
-        role_name_color: "purple-950",
-        prepare_description: "Выберите игроков Lovers",
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игроков Mason (Lovers)",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::ToughGuy),
@@ -234,6 +236,30 @@ pub const WEREWOLF_ROLES: [RoleInfo; 20] = [
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Diseased",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::VillageIdiot),
+        role_name: "Village Idiot",
+        role_icon: "",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Village Idiot",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Hunter),
+        role_name: "Hunter",
+        role_icon: "",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Hunter",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::MadBomber),
+        role_name: "Mad Bomber",
+        role_icon: "",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Mad Bomber",
     }),
 ];
 
@@ -309,59 +335,329 @@ impl Default for WerewolfActiveRoles {
     }
 }
 
+#[derive(Debug, Clone)]
+struct OpenFinishGameDialogue(bool);
+
 #[component]
 pub fn WerewolfGameView() -> impl IntoView {
+    let open_finish_game_dialogue = create_rw_signal(OpenFinishGameDialogue(false));
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
     let (active_werewolf_roles, set_active_werewolf_roles) =
         create_signal::<WerewolfActiveRoles>(WerewolfActiveRoles::default());
 
     provide_context(active_werewolf_roles);
+    provide_context(open_finish_game_dialogue);
 
-    let game_state_view = move || match mafia_context.game_state.get() {
-        GameState::Werewolf(game_state) => match game_state {
-            WerewolfGameState::SelectActiveRoles => view! {
-                <SelectActiveRoles active_werewolf_roles set_active_werewolf_roles />
+    let game_state_view = move || {
+        if open_finish_game_dialogue.get().0 {
+            return view! {
+                <SelectWinners
+                    on_close=move || open_finish_game_dialogue.set(OpenFinishGameDialogue(false))
+                    on_finish=move || mafia_context.game_state.set(GameState::SetupNames)
+                />
             }
-            .into_view(),
-
-            WerewolfGameState::SetupRoles(role) => view! {
-                <SetupRolesView role={role} />
-            }
-            .into_view(),
-
-            WerewolfGameState::Day => view! {
-                <DayVote />
-            }
-            .into_view(),
-            WerewolfGameState::Night(role) => view! {
-                <NightTurn role_info={role} />
-            }
-            .into_view(),
-            WerewolfGameState::End => view! {
-                <div>"Конец игры"</div>
-            }
-            .into_view(),
-        },
-        _ => view! {
-            <div>"Ошибка"</div>
+            .into_view();
         }
-        .into_view(),
+
+        match mafia_context.game_state.get() {
+            GameState::Werewolf(game_state) => match game_state {
+                WerewolfGameState::SelectActiveRoles => view! {
+                    <SelectActiveRoles active_werewolf_roles set_active_werewolf_roles />
+                }
+                .into_view(),
+
+                WerewolfGameState::SetupRoles(role) => view! {
+                    <SetupRolesView role={role} />
+                }
+                .into_view(),
+
+                WerewolfGameState::Day => view! {
+                    <DayVote />
+                }
+                .into_view(),
+                WerewolfGameState::Night(role) => view! {
+                    <NightTurn role_info={role} />
+                }
+                .into_view(),
+                WerewolfGameState::End => view! {
+                    <div>"Конец игры"</div>
+                }
+                .into_view(),
+            },
+            _ => view! {
+                <div>"Ошибка"</div>
+            }
+            .into_view(),
+        }
     };
 
     view! {
         <div class="relative flex flex-col gap-4 w-full h-full">
             <h1 class="text-lg relative w-full text-left">
                 "Werewolf"
-                <button
-                    class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
-                    on:click=move |_| if window().confirm_with_message("Вернуться в главное меню?").expect("REASON") {
-                        mafia_context.game_state.set(GameState::SetupNames);
-                    }>
-                    "Главное меню"
-                </button>
+                {move || if open_finish_game_dialogue.get().0 {
+                    view!{
+                        <button
+                            class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
+                            on:click=move |_| {
+                                open_finish_game_dialogue.set(OpenFinishGameDialogue(false));
+                            }>
+                            "Отмена"
+                        </button>
+                        }
+                    }else{
+                        view!{
+                        <button
+                            class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
+                            on:click=move |_| {
+                                open_finish_game_dialogue.set(OpenFinishGameDialogue(true));
+                            }>
+                            "Завершить игру"
+                        </button>
+                        }
+                    }
+                }
             </h1>
             {game_state_view}
+        </div>
+    }
+}
+
+#[component]
+fn SelectWinners(
+    on_close: impl Fn() -> () + Clone + 'static,
+    on_finish: impl Fn() -> () + Clone + 'static,
+) -> impl IntoView {
+    let selected_winners = create_rw_signal(HashSet::<Role>::new());
+    let selected_users = create_rw_signal(HashSet::<String>::new());
+
+    let roles = [
+        RoleInfo::Icon(IconRoleInfo {
+            role: Role::Werewolf(WerewolfRole::Werewolf),
+            role_name: "Оборотни",
+            role_name_color: "red-950",
+            role_icon: "🔫",
+        }),
+        RoleInfo::Icon(IconRoleInfo {
+            role: Role::Werewolf(WerewolfRole::Villager),
+            role_name: "Жители деревни",
+            role_name_color: "green-950",
+            role_icon: "✋",
+        }),
+    ];
+
+    let is_selected = move |role: &Role| selected_winners.get().contains(role);
+
+    let calculate_user_logs = move || {
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let users = game_ctx.users.get();
+
+        let mut logs = Vec::<UserLogs>::new();
+
+        let best_players = selected_users.get();
+        let lastRound = game_ctx.round.get();
+
+        for user in users.iter() {
+            let mut rounds = Vec::<String>::new();
+            rounds.resize(lastRound + 1, "".to_string());
+            for (index, roles) in user.history_by.iter() {
+                let index = index - 1;
+                let role = roles
+                    .iter()
+                    .map(|role| {
+                        WEREWOLF_ROLES
+                            .iter()
+                            .find(|r| r.get_role() == *role)
+                            .unwrap()
+                            .get_role_icon()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                // set role icons to rounds[index]
+                // index might be empty, we should create "" for it
+                rounds[index] = role;
+            }
+            // add choosed_by to last round
+            let role = user
+                .choosed_by
+                .iter()
+                .map(|role| {
+                    WEREWOLF_ROLES
+                        .iter()
+                        .find(|r| r.get_role() == *role)
+                        .unwrap()
+                        .get_role_icon()
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            if !role.is_empty() {
+                rounds[lastRound] = format!("{} {}", rounds[lastRound], role);
+            }
+
+            let winner = (selected_winners
+                .get()
+                .contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                && (user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                    || user.role.contains(&Role::Werewolf(WerewolfRole::Minion))))
+                || (selected_winners
+                    .get()
+                    .contains(&Role::Werewolf(WerewolfRole::Villager))
+                    && !user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                    && !user.role.contains(&Role::Werewolf(WerewolfRole::Minion)));
+
+            let score = 0;
+
+            let role = if user.role.is_empty() {
+                "Мирный".to_string()
+            } else {
+                user.role
+                    .iter()
+                    .map(|role| {
+                        WEREWOLF_ROLES
+                            .iter()
+                            .find(|r| r.get_role() == *role)
+                            .unwrap()
+                            .get_role_name()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" • ")
+            };
+
+            let role_index = if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf)) {
+                17
+            } else if user.role.contains(&Role::Werewolf(WerewolfRole::Minion)) {
+                17
+            } else {
+                16
+            };
+
+            let best_player = best_players.contains(&user.id);
+
+            logs.push(UserLogs {
+                id: user.id.clone(),
+                name: user.name.clone(),
+                role,
+                role_index,
+                best_player,
+                score,
+                winner,
+                rounds,
+            });
+        }
+
+        logs
+    };
+
+    let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
+
+    let users = move || mafia_context.users.get();
+
+    view! {
+        <div class="flex-1 flex flex-col gap-1 relative overflow-auto px-4 -mx-4">
+            <h2>"⭐ Выберите лучших игроков"</h2>
+            <div class="grid grid-cols-3 gap-1">
+                <For
+                    each=users
+                    key=|user| format!("{}_{}", user.id.clone(), user.role.len())
+                    children=move |user| {
+                        let user_clone = user.clone();
+
+                        view!{
+                            <UserSelectRole
+                                user=user_clone
+                                disabled=false
+                                is_selected=move |u| selected_users.get().contains(&u.id)
+                                highlighted=false
+                                killed=false
+                                on:click=move |_| {
+                                    selected_users.update(|users| {
+                                        if users.contains(&user.id) {
+                                            users.remove(&user.id);
+                                        } else {
+                                            users.insert(user.id.clone());
+                                        }
+                                    });
+                                }
+                            />
+                        }
+                    }
+                />
+            </div>
+        </div>
+        <div class="flex flex-col gap-1 relative px-4 -mx-4">
+            <h2>"🏆 Выберите кто победил"</h2>
+            <button class=move ||
+                format!("rounded-xl px-3 py-2 text-sm {}", if selected_winners.get().is_empty() {
+                    "text-white bg-red-800/80".to_string()
+                } else {
+                    "bg-gray-200".to_string()
+                })
+                on:click=move|_|{
+                    selected_winners.update(|selected_winners|{
+                        selected_winners.clear();
+                    });
+                }
+            >
+                "Не сохранять результаты"
+            </button>
+            <div class="flex flex-row gap-1 justify-stretch w-full">
+            {roles.map(|role| {
+                let role_clone = role.get_role().clone();
+                view!{
+                    <button class=move ||
+                        format!("flex-1 rounded-xl px-3 py-5 text-sm {}", if is_selected(
+                            &role.get_role()
+                        ) {
+                            format!("text-white {}", role.get_role_bg_color())
+                        } else {
+                            "bg-gray-200".to_string()
+                        })
+                        on:click=move|_|{
+                            selected_winners.update(|selected_winners|{
+                                if selected_winners.contains(&role_clone) {
+                                    selected_winners.remove(&role_clone);
+                                }else{
+                                    selected_winners.insert(role_clone);
+                                }
+                            });
+                        }
+                    >
+                        {role.get_role_name()}
+                    </button>
+                }
+            })}
+            </div>
+        </div>
+        <div class="flex gap-2 w-full items-center">
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click={
+                    move |_| on_close()
+                }
+            >
+                "Назад"
+            </button>
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click={
+                    move |_| {
+                        if selected_winners.get().is_empty() {
+                            if window().confirm_with_message("Вернуться в главное меню без победителей?").expect("REASON") {
+                                on_finish();
+                            }
+                        }else{
+                            rust_create_new_game_log(calculate_user_logs(), false);
+
+                            //on_finish();
+                        }
+                    }
+                }
+            >
+                "Закончить игру"
+            </button>
         </div>
     }
 }
@@ -424,39 +720,51 @@ fn SelectActiveRoles(
     };
 
     view! {
-        <div class="flex-1 flex flex-col gap-1 relative overflow-auto px-4 -mx-4">
-            {roles.map(|role| {
-                let role_clone = role.get_role().clone();
-                view!{
-                    <button class=move ||
-                        format!("rounded-full px-3 py-1 text-sm {}", if is_selected(
-                            &role.get_role()
-                        ) {
-                            format!("text-white {}", role.get_role_bg_color())
-                        } else {
-                            "bg-gray-200".to_string()
-                        })
-                        on:click=move|_|{
-                            set_active_werewolf_roles.update(|active_werewolf_roles|{
-                                if active_werewolf_roles.roles.contains(&role_clone) {
-                                    active_werewolf_roles.roles.remove(&role_clone);
-                                }else{
-                                    active_werewolf_roles.roles.insert(role_clone);
-                                }
-                            });
-                        }
-                    >
-                        {role.get_role_name()}
-                    </button>
+        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+            <div class="flex-1"></div>
+            <button class=move || format!("rounded-2xl px-3 py-2 text-sm bg-gray-200 mb-3")
+                on:click=move|_|{
+                    set_active_werewolf_roles.update(|active_werewolf_roles|{
+                        active_werewolf_roles.roles.clear();
+                    });
                 }
-            }).collect::<Vec<_>>().into_view()}
+            >
+                "Очистить роли"
+            </button>
+            <div class="grid grid-cols-3 gap-1">
+                {roles.map(|role| {
+                    let role_clone = role.get_role().clone();
+                    view!{
+                        <button class=move ||
+                            format!("text-left rounded-2xl px-3 py-2 text-sm {}", if is_selected(
+                                &role.get_role()
+                            ) {
+                                format!("text-white {}", role.get_role_bg_color())
+                            } else {
+                                "bg-gray-200".to_string()
+                            })
+                            on:click=move|_|{
+                                set_active_werewolf_roles.update(|active_werewolf_roles|{
+                                    if active_werewolf_roles.roles.contains(&role_clone) {
+                                        active_werewolf_roles.roles.remove(&role_clone);
+                                    }else{
+                                        active_werewolf_roles.roles.insert(role_clone);
+                                    }
+                                });
+                            }
+                        >
+                            {role.get_role_name()}
+                        </button>
+                    }
+                }).collect::<Vec<_>>().into_view()}
+            </div>
         </div>
         <div class="flex gap-2 w-full items-center">
             <button
-                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                class="w-9 px-2 py-2 text-sm bg-gray-200 rounded-full flex items-center justify-center"
                 on:click=onclick_prev_role
             >
-                "Назад"
+                "←"
             </button>
             <button
                 class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
@@ -604,6 +912,7 @@ fn UserSelectRole(
     disabled: bool,
     killed: bool,
     highlighted: bool,
+    #[prop(default = "ring-red-600/50".to_string())] highlight_color: String,
 ) -> impl IntoView {
     let history = user.history_by.clone();
     let choosed = user.choosed_by.clone();
@@ -614,11 +923,9 @@ fn UserSelectRole(
             disabled=disabled
             class=move || {
                 let mut main_class = "relative flex-1 px-3 py-1 text-sm rounded-2xl flex flex-col items-center justify-start".to_string();
-                main_class.push_str(if highlighted {
-                    " ring-1 ring-red-600/50"
-                } else {
-                    ""
-                });
+                if highlighted {
+                    main_class.push_str(&format!(" ring-1 {}", highlight_color));
+                }
                 main_class.push_str(if killed {
                     " opacity-20 bg-white hover:opacity-90"
                 } else if disabled {
@@ -833,10 +1140,10 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     view! {
         <div class="flex gap-2 w-full items-center">
             <button
-                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                class="w-9 px-2 py-2 text-sm bg-gray-200 rounded-full flex items-center justify-center"
                 on:click=onclick_prev_role
             >
-                "Назад"
+                "←"
             </button>
             <button
                 class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
@@ -855,15 +1162,22 @@ fn SelectUsersForVote(
     is_killed: impl Fn(&Player) -> bool + 'static,
     is_disabled: impl Fn(&Player) -> bool + 'static,
     is_highlighted: impl Fn(&Player) -> bool + 'static,
+    #[prop(default = "ring-red-600/50".to_string())] highlight_color: String,
 ) -> impl IntoView {
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
     let users = move || mafia_context.users.get();
     let users_alive_len = move || users().iter().filter(|u| u.is_alive).count();
+    let werewolf_alive_len = move || {
+        users()
+            .iter()
+            .filter(|u| u.is_alive && u.role.contains(&Role::Werewolf(WerewolfRole::Werewolf)))
+            .count()
+    };
     let is_selected = move |user: &Player| selected_users.get().contains(&user.name);
 
     view! {
-        <div class="text-sm">"Осталось игроков: "{users_alive_len()}</div>
+        <div class="text-sm">"Осталось игроков: "{users_alive_len}", оборотней: "{werewolf_alive_len}</div>
         <div class="grid grid-cols-3 gap-1">
             <For
                 each=users
@@ -878,6 +1192,7 @@ fn SelectUsersForVote(
                             user=user.clone()
                             disabled=disabled
                             highlighted=highlighted
+                            highlight_color=highlight_color.clone()
                             killed=killed
                             is_selected=is_selected
                             on:click=move |_| {
@@ -899,6 +1214,15 @@ fn SelectUsersForVote(
 
 #[component]
 fn DayVote() -> impl IntoView {
+    let clock_choose = create_rw_signal(true);
+    let kill_player_choose = create_rw_signal(false);
+    let start_player_choose = create_rw_signal(false);
+
+    let (highlighted_player, set_highlighted_player) =
+        create_signal::<HashSet<String>>(HashSet::new());
+
+    let open_dialogue =
+        use_context::<RwSignal<OpenFinishGameDialogue>>().expect("MafiaContext not found");
     let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
 
     let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
@@ -953,33 +1277,230 @@ fn DayVote() -> impl IntoView {
                 }
                 next_role = get_next_night_role(check_role);
             } else {
-                game_ctx.game_state.set(GameState::SetupNames);
+                open_dialogue.set(OpenFinishGameDialogue(true));
                 break;
             }
         }
     };
 
+    let onclick_kill_users = move || {
+        let selected_users = selected_users.get();
+        let round = game_ctx.round.get();
+
+        game_ctx.users.update(|users| {
+            fn kill_user(user: &mut Player, round: usize) {
+                if !user.is_alive {
+                    return;
+                }
+
+                if user
+                    .additional_role
+                    .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
+                {
+                    user.additional_role
+                        .remove(&Role::Werewolf(WerewolfRole::ToughGuy));
+                    return;
+                }
+
+                user.choosed_by
+                    .insert(Role::Werewolf(WerewolfRole::Villager));
+                user.is_alive = false;
+                user.was_killed = true;
+            }
+
+            users.iter_mut().for_each(|u| {
+                if selected_users.contains(&u.name) {
+                    kill_user(u, round);
+                }
+            });
+
+            calculate_after_kills(users);
+        });
+
+        kill_player_choose.set(false);
+    };
+
+    create_effect(move |_| {
+        kill_player_choose.get();
+        set_selected_users.update(|selected_users| {
+            selected_users.clear();
+        });
+    });
+
+    let onclick_start_player = move || {
+        if !start_player_choose.get() {
+            set_highlighted_player.update(|highlighted_player| {
+                highlighted_player.clear();
+            });
+            start_player_choose.set(true);
+        } else {
+            start_player_choose.set(false);
+        }
+    };
+
+    create_effect(move |_| {
+        if start_player_choose.get() && !highlighted_player.get().is_empty() {
+            start_player_choose.set(false);
+        }
+    });
+
+    let is_highlighted = move |user: &Player| highlighted_player.get().contains(&user.name);
+
     view! {
-        <h2>"Кого мирные жители убъют этим Днем?"</h2>
-        <p class="opacity-50 text-sm">"Если убили Hunter или Mad Bomber, выберите несколько целей"</p>
-        <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
-            <div class="flex-1"></div>
-            <div class="flex flex-col gap-1 w-full">
-                <SelectUsersForVote selected_users set_selected_users
-                    is_killed=move |user: &Player| !user.is_alive && !user.was_killed
-                    is_disabled=move |user| !user.is_alive
-                    is_highlighted=move |_| false
-                />
-            </div>
-        </div>
-        <NextTurnButtons onclick_next_role />
+        {move ||
+            if start_player_choose.get() {
+                view!{
+                    <h2>"Кто начал этот раунд?"</h2>
+                    <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+                        <div class="flex-1"></div>
+                        <div class="flex flex-col gap-1 w-full pb-0.5">
+                            <SelectUsersForVote
+                                selected_users=highlighted_player
+                                set_selected_users=set_highlighted_player
+                                is_killed=move |user: &Player| !user.is_alive && !user.was_killed
+                                is_disabled=move |user| !user.is_alive
+                                is_highlighted
+                                highlight_color="ring-blue-600/80".to_string()
+                            />
+                        </div>
+                    </div>
+                    <DayTurnButtons onclick_next_role clock_choose start_player_choose kill_player_choose onclick_start_player />
+                }.into_view()
+            }else if kill_player_choose.get() {
+                view!{
+                    <h2>"Выберите убитых в начале дня:"</h2>
+                    <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+                        <div class="flex-1"></div>
+                        <div class="flex flex-col gap-1 w-full pb-0.5">
+                            <SelectUsersForVote
+                                selected_users
+                                set_selected_users
+                                is_killed=move |user: &Player| !user.is_alive && !user.was_killed
+                                is_disabled=move |user| !user.is_alive
+                                is_highlighted
+                                highlight_color="ring-blue-600/80".to_string()
+                            />
+                        </div>
+                    </div>
+                    <DayTurnButtons onclick_next_role=onclick_kill_users clock_choose start_player_choose kill_player_choose onclick_start_player />
+                }.into_view()
+            }else{
+                view! {
+                    <h2>"Кого мирные жители убъют этим Днем?"</h2>
+                    <p class="opacity-50 text-sm">"Если убили Hunter или Mad Bomber, выберите несколько целей"</p>
+                    <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
+                        <div class="flex-1"></div>
+                        <div class="flex flex-col gap-1 w-full pb-0.5">
+                            <SelectUsersForVote selected_users set_selected_users
+                                is_killed=move |user: &Player| !user.is_alive && !user.was_killed
+                                is_disabled=move |user| !user.is_alive
+                                is_highlighted
+                                highlight_color="ring-blue-600/80".to_string()
+                            />
+                        </div>
+                    </div>
+                    <Show when=move || clock_choose.get()>
+                        <Timer />
+                    </Show>
+                    <DayTurnButtons onclick_next_role clock_choose start_player_choose kill_player_choose onclick_start_player />
+                }.into_view()
+            }
+        }
     }
 }
 
 #[component]
-fn NextTurnButtons<F>(onclick_next_role: F) -> impl IntoView
+fn Timer() -> impl IntoView {
+    let (time, set_time) = create_signal(0);
+    let audio_ref = create_node_ref::<Audio>();
+
+    let Pausable {
+        pause,
+        resume,
+        is_active,
+    } = use_interval_fn(
+        move || {
+            // do something
+            set_time.update(|time| {
+                if *time > 0 {
+                    *time -= 1;
+                }
+            });
+        },
+        1000,
+    );
+
+    let get_time = move || {
+        let time = time.get();
+        let minutes = time / 60;
+        let seconds = time % 60;
+
+        format!("{:01}:{:02}", minutes, seconds)
+    };
+
+    pause();
+
+    create_effect(move |_| {
+        if is_active.get() && time.get() == 0 {
+            pause();
+
+            // play alarm sound
+            if let Some(audio) = audio_ref.get() {
+                let _ = audio.play().expect("Couldn't play audio");
+            }
+        }
+    });
+
+    let start_timer = move |start_time: i32| {
+        set_time.update(|time| {
+            *time = start_time;
+        });
+        resume();
+    };
+
+    view! {
+        <div class="flex items-stretch justify-center gap-1">
+            <audio id="alarm" src="assets/alarm.mp3" preload="auto"
+                _ref=audio_ref
+            ></audio>
+            <div class="text-4xl">"⏰"</div>
+            <div class="text-4xl">{get_time}</div>
+            <button class="flex-1 px-1 py-1 text-sm bg-gray-200 rounded-full" on:click={
+                let start_timer = start_timer.clone();
+
+                move|_|{
+                    start_timer(60);
+                }
+            }>"1 мин"</button>
+            <button class="flex-1 px-1 py-1 text-sm bg-gray-200 rounded-full" on:click={
+                let start_timer = start_timer.clone();
+
+                move|_|{
+                    start_timer(30);
+                }
+            }>"30 сек"</button>
+            <button class="flex-1 px-1 py-1 text-sm bg-gray-200 rounded-full" on:click={
+                let start_timer = start_timer.clone();
+
+                move|_|{
+                    start_timer(15);
+                }
+            }>"15 сек"</button>
+        </div>
+    }
+}
+
+#[component]
+fn DayTurnButtons<F, F2>(
+    onclick_next_role: F,
+    onclick_start_player: F2,
+    clock_choose: RwSignal<bool>,
+    start_player_choose: RwSignal<bool>,
+    kill_player_choose: RwSignal<bool>,
+) -> impl IntoView
 where
     F: Fn() + 'static,
+    F2: Fn() + 'static,
 {
     let onclick_prev_role = move |_| {
         let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
@@ -1005,14 +1526,104 @@ where
 
     view! {
         <div class="flex gap-2 w-full items-center">
+        <button
+            class="w-9 px-2 py-2 text-sm bg-gray-200 rounded-full flex items-center justify-center"
+            on:click=onclick_prev_role
+        >
+            "←"
+        </button>
+        <button
+            class=move || {
+                format!("flex-1 px-2 py-2 text-sm rounded-full flex items-center justify-center {}", if kill_player_choose.get() {
+                    "bg-blue-500"
+                }else{
+                    "bg-gray-200"
+                })
+            }
+            on:click=move |_| {
+                kill_player_choose.update(|kill_player_choose| {
+                    *kill_player_choose = !*kill_player_choose;
+                });
+                clock_choose.set(false);
+                start_player_choose.set(false);
+            }
+        >
+            "❌"
+        </button>
+        <button
+            class=move || {
+                format!("flex-1 px-2 py-2 text-sm rounded-full flex items-center justify-center {}", if start_player_choose.get() {
+                    "bg-blue-500"
+                }else{
+                    "bg-gray-200"
+                })
+            }
+            on:click=move |_| {
+                onclick_start_player();
+                clock_choose.set(false);
+                kill_player_choose.set(false);
+            }
+        >
+            "🏁"
+        </button>
+        <button
+            class=move || {
+                format!("flex-1 px-2 py-2 text-sm rounded-full flex items-center justify-center {}", if clock_choose.get() {
+                    "bg-blue-500"
+                }else{
+                    "bg-gray-200"
+                })
+            }
+            on:click=move |_| {
+                start_player_choose.set(false);
+                clock_choose.update(|clock_choose| {
+                    *clock_choose = !*clock_choose;
+                });
+                kill_player_choose.set(false);
+            }
+        >
+            "⏰"
+        </button>
+        <button
+                class="flex-grow-[2] px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click=onclick_next
+            >
+                "Далее"
+            </button>
+        </div>
+    }
+}
+
+#[component]
+fn KillDayButtons<F, F2>(onclick_kill_users: F, onclick_cancel: F2) -> impl IntoView
+where
+    F: Fn() + 'static,
+    F2: Fn() + 'static,
+{
+    let onclick_prev_role = move |_| {
+        onclick_cancel();
+    };
+
+    let onclick_next = move |_| {
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>()
+            .expect("MafiaContext history not found");
+
+        set_context_history.update(|history| history.push(game_ctx.get_history()));
+
+        onclick_kill_users();
+    };
+
+    view! {
+        <div class="flex gap-2 w-full items-center">
             <button
-                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                class="flex-grow-[2] px-4 py-2 text-sm bg-gray-200 rounded-full"
                 on:click=onclick_prev_role
             >
-                "Назад"
+                "Отмена"
             </button>
             <button
-                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                class="flex-grow-[2] px-4 py-2 text-sm bg-gray-200 rounded-full"
                 on:click=onclick_next
             >
                 "Далее"
@@ -1340,9 +1951,56 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
             <div class="flex flex-col gap-1 w-full">
             <SelectUsersForVote
                 is_killed=move |user: &Player| !user.is_alive && !user.was_killed
-                selected_users set_selected_users is_disabled is_highlighted />
+                selected_users set_selected_users is_disabled is_highlighted
+                highlight_color="ring-red-600/50".to_string()
+            />
             </div>
         </div>
-        <NextTurnButtons onclick_next_role />
+        <NightTurnButtons onclick_next_role />
+    }
+}
+
+#[component]
+fn NightTurnButtons<F>(onclick_next_role: F) -> impl IntoView
+where
+    F: Fn() + 'static,
+{
+    let onclick_prev_role = move |_| {
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>()
+            .expect("MafiaContext history not found");
+
+        set_context_history.update(|history| {
+            if let Some(prev_ctx) = history.pop() {
+                game_ctx.set_history(prev_ctx);
+            }
+        });
+    };
+
+    let onclick_next = move |_| {
+        let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
+        let set_context_history = use_context::<WriteSignal<Vec<GameContextHistory>>>()
+            .expect("MafiaContext history not found");
+
+        set_context_history.update(|history| history.push(game_ctx.get_history()));
+
+        onclick_next_role();
+    };
+
+    view! {
+        <div class="flex gap-2 w-full items-center">
+            <button
+                class="w-9 px-2 py-2 text-sm bg-gray-200 rounded-full flex items-center justify-center"
+                on:click=onclick_prev_role
+            >
+                "←"
+            </button>
+            <button
+                class="flex-1 px-4 py-2 text-sm bg-gray-200 rounded-full"
+                on:click=onclick_next
+            >
+                "Далее"
+            </button>
+        </div>
     }
 }

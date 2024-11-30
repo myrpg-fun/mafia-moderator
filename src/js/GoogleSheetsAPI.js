@@ -70,26 +70,26 @@ export async function initializeGAPI() {
 }
 
 async function checkStoredToken() {
-  if (gapi.client.getToken() !== null) return true;
+  if (gapi.client.getToken() === null) {
+    let storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
 
-  let storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (storedToken) {
+      const token = JSON.parse(storedToken);
 
-  if (storedToken) {
-    const token = JSON.parse(storedToken);
-
-    // Validate token by making a request
-    try {
       gapi.client.setToken(token);
-
-      await gapi.client.sheets.spreadsheets.get({
-        spreadsheetId: SPREADSHEET_ID, // Use an actual, accessible spreadsheet ID
-      });
-
-      return true;
-    } catch (err) {
-      console.error("Token validation failed", err);
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
     }
+  }
+
+  // Validate token by making a request
+  try {
+    await gapi.client.sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID, // Use an actual, accessible spreadsheet ID
+    });
+
+    return true;
+  } catch (err) {
+    console.error("Token validation failed", err);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
 
   return false;
@@ -237,7 +237,7 @@ export async function createNewUser(id, name) {
 }
 
 // {name: "Игрок 1", id: "001", role: "Мафия", score: 0, winner: bool, rounds: ["", "", "", "", ""]}
-export async function createNewGameLog(users) {
+export async function createNewGameLog(users, isMafia) {
   await handleAuth();
 
   try {
@@ -601,6 +601,20 @@ export async function createNewGameLog(users) {
                 sheetId,
                 dimension: "COLUMNS",
                 startIndex: 3,
+                endIndex: 4,
+              },
+              properties: {
+                pixelSize: 40,
+              },
+              fields: "*",
+            },
+          },
+          {
+            updateDimensionProperties: {
+              range: {
+                sheetId,
+                dimension: "COLUMNS",
+                startIndex: 4,
                 endIndex: 100,
               },
               properties: {
@@ -674,14 +688,19 @@ export async function createNewGameLog(users) {
         daySheetValues.push(userSheet);
       }
 
+      const indexGamesCount = isMafia ? 4 : 14;
+      const indexGamesWinner = isMafia ? 5 : 15;
+      const indexGamesBestPlayer = isMafia ? 12 : 18;
+
       try {
         // update 4th column with new game count
-        userSheet[4] = userSheet[4] * 1 + 1;
-        if (isNaN(userSheet[4])) userSheet[4] = 1;
+        userSheet[indexGamesCount] = userSheet[indexGamesCount] * 1 + 1;
+        if (isNaN(userSheet[indexGamesCount])) userSheet[indexGamesCount] = 1;
         if (user.winner) {
           // update 5th column with new game winner
-          userSheet[5] = userSheet[5] * 1 + 1;
-          if (isNaN(userSheet[5])) userSheet[5] = 1;
+          userSheet[indexGamesWinner] = userSheet[indexGamesWinner] * 1 + 1;
+          if (isNaN(userSheet[indexGamesWinner]))
+            userSheet[indexGamesWinner] = 1;
         }
       } catch (err) {
         console.error(err);
@@ -690,8 +709,10 @@ export async function createNewGameLog(users) {
       try {
         if (user.best_player) {
           // update 12th column with game best player
-          userSheet[12] = userSheet[12] * 1 + 1;
-          if (isNaN(userSheet[12])) userSheet[12] = 1;
+          userSheet[indexGamesBestPlayer] =
+            userSheet[indexGamesBestPlayer] * 1 + 1;
+          if (isNaN(userSheet[indexGamesBestPlayer]))
+            userSheet[indexGamesBestPlayer] = 1;
         }
       } catch (err) {
         console.error(err);
@@ -748,14 +769,19 @@ export async function createNewGameLog(users) {
       const user = users.find((user) => user.id === userId);
       if (!user) continue;
 
+      const indexGamesCount = isMafia ? 4 : 14;
+      const indexGamesWinner = isMafia ? 5 : 15;
+      const indexGamesBestPlayer = isMafia ? 12 : 18;
+
       try {
         // update 4th column with new game count
-        userSheet[4] = userSheet[4] * 1 + 1;
-        if (isNaN(userSheet[4])) userSheet[4] = 1;
+        userSheet[indexGamesCount] = userSheet[indexGamesCount] * 1 + 1;
+        if (isNaN(userSheet[indexGamesCount])) userSheet[indexGamesCount] = 1;
         if (user.winner) {
           // update 5th column with new game winner
-          userSheet[5] = userSheet[5] * 1 + 1;
-          if (isNaN(userSheet[5])) userSheet[5] = 1;
+          userSheet[indexGamesWinner] = userSheet[indexGamesWinner] * 1 + 1;
+          if (isNaN(userSheet[indexGamesWinner]))
+            userSheet[indexGamesWinner] = 1;
         }
       } catch (err) {
         console.error(err);
@@ -764,8 +790,10 @@ export async function createNewGameLog(users) {
       try {
         if (user.best_player) {
           // update 12th column with game best player
-          userSheet[12] = userSheet[12] * 1 + 1;
-          if (isNaN(userSheet[12])) userSheet[12] = 1;
+          userSheet[indexGamesBestPlayer] =
+            userSheet[indexGamesBestPlayer] * 1 + 1;
+          if (isNaN(userSheet[indexGamesBestPlayer]))
+            userSheet[indexGamesBestPlayer] = 1;
         }
       } catch (err) {
         console.error(err);

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use leptos::*;
+use serde::de;
 use serde::Deserialize;
 use serde::Serialize;
 use crate::rust_create_new_game_log;
@@ -116,16 +117,21 @@ fn get_next_night_role(role: Role) -> Option<&'static RoleInfo> {
     MAFIA_ROLES.get(role_index.wrapping_add(1))
 }
 
+#[derive(Debug, Clone)]
+struct OpenFinishGameDialogue(bool);
+
 #[component]
 pub fn MafiaGameView() -> impl IntoView {
-    let open_finish_game_dialogue = create_rw_signal(false);
+    let open_finish_game_dialogue = create_rw_signal(OpenFinishGameDialogue(false));
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
+    provide_context(open_finish_game_dialogue);
+
     let game_state_view = move || {
-        if open_finish_game_dialogue.get() {
+        if open_finish_game_dialogue.get().0 {
             return view! {
                 <SelectWinners 
-                    on_close=move || open_finish_game_dialogue.set(false)
+                    on_close=move || open_finish_game_dialogue.set(OpenFinishGameDialogue(false))
                     on_finish=move || mafia_context.game_state.set(GameState::SetupNames)
                 />
             }.into_view();
@@ -158,12 +164,12 @@ pub fn MafiaGameView() -> impl IntoView {
         <div class="relative flex flex-col gap-4 w-full h-full">
             <h1 class="text-lg relative w-full text-left">
                 "Мафия"
-                {move || if open_finish_game_dialogue.get() {
+                {move || if open_finish_game_dialogue.get().0 {
                     view!{
                         <button
                             class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
                             on:click=move |_| {
-                                open_finish_game_dialogue.set(false);
+                                open_finish_game_dialogue.set(OpenFinishGameDialogue(false));
                             }>
                             "Отмена"
                         </button>
@@ -173,7 +179,7 @@ pub fn MafiaGameView() -> impl IntoView {
                         <button
                             class="absolute text-sm right-0 top-0 px-2 py-1 bg-gray-200 rounded-full"
                             on:click=move |_| {
-                                open_finish_game_dialogue.set(true);
+                                open_finish_game_dialogue.set(OpenFinishGameDialogue(true));
                             }>
                             "Завершить игру"
                         </button>
@@ -397,7 +403,7 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
                                 on_finish();
                             }
                         }else{
-                            rust_create_new_game_log(calculate_user_logs());
+                            rust_create_new_game_log(calculate_user_logs(), true);
                             
                             on_finish();
                         }
@@ -747,6 +753,7 @@ fn SelectUsersForVote(
 
 #[component]
 fn DayVote() -> impl IntoView {
+    let open_dialogue = use_context::<RwSignal<OpenFinishGameDialogue>>().expect("MafiaContext not found");
     let game_ctx =
         use_context::<GameContext>().expect("MafiaContext not found");
 
@@ -781,7 +788,7 @@ fn DayVote() -> impl IntoView {
                 }
                 next_role = get_next_night_role(check_role.get_role());
             } else {
-                game_ctx.game_state.set(GameState::SetupNames);
+                open_dialogue.set(OpenFinishGameDialogue(true));
                 break;
             }
         }

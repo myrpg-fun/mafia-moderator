@@ -33,16 +33,16 @@ extern "C" {
     pub fn handleSigninClick() -> JsValue; // JsValue <==> Promise
     pub fn loadAllUsers() -> JsValue; // JsValue <==> Promise
     pub fn createNewUser(id: &str, name: &str) -> JsValue; // JsValue <==> Promise
-    pub fn createNewGameLog(users: &JsValue) -> JsValue; // JsValue <==> Promise
+    pub fn createNewGameLog(users: &JsValue, isMafia: bool) -> JsValue; // JsValue <==> Promise
 }
 
-pub fn rust_create_new_game_log(log_users: Vec<UserLogs>) {
+pub fn rust_create_new_game_log(log_users: Vec<UserLogs>, is_mafia: bool) {
     // Convert the users into a JsValue that JS can understand
     let js_users = serde_wasm_bindgen::to_value(&log_users);
 
     if let Ok(js_users) = js_users {
         // Call the JS function
-        createNewGameLog(&js_users);
+        createNewGameLog(&js_users, is_mafia);
     }
 }
 
@@ -375,13 +375,14 @@ fn SetupUsers() -> impl IntoView {
     let game_ctx = use_context::<GameContext>().expect("MafiaContext not found");
 
     let players = move || game_ctx.users.get().into_iter().enumerate();
+    let player_len = move || players().count();
 
     let is_adding_player = create_rw_signal(false);
 
     view! {
         <div class="relative flex flex-col gap-4 w-full h-full">
             <h2 class="flex w-full items-baseline justify-start gap-2">
-                "Введите имена игроков"
+                "Введите имена игроков ("{player_len}")"
             </h2>
             {move ||
                 if is_adding_player.get() {
@@ -593,49 +594,51 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                 }.into_view()
             } else {
                 view! {
-                    <div class="flex-1 flex flex-col justify-end gap-1 overflow-auto -mx-4 px-4">
-                        <For
-                            each=filtered_users
-                            key=|user| user.id()
-                            children=move |user| {
-                                let user_id = &user.id();
-                                let user_id2 = user.id();
-                                let user_id3 = user.id();
-                                let user_name = &user.name();
+                    <div class="flex-1 overflow-auto -mx-4 px-4">
+                        <div class="flex flex-col justify-end gap-1">
+                            <For
+                                each=filtered_users
+                                key=|user| user.id()
+                                children=move |user| {
+                                    let user_id = &user.id();
+                                    let user_id2 = user.id();
+                                    let user_id3 = user.id();
+                                    let user_name = &user.name();
 
-                                let is_selected = move || {
-                                    let user_id_ref = &user_id2;
-                                    game_ctx.users.get().iter().any(|u| {
-                                        u.id == *user_id_ref
-                                    })
-                                };
+                                    let is_selected = move || {
+                                        let user_id_ref = &user_id2;
+                                        game_ctx.users.get().iter().any(|u| {
+                                            u.id == *user_id_ref
+                                        })
+                                    };
 
-                                view!{
-                                    <button
-                                        type="button"
-                                        class=move ||
-                                            format!("flex gap-1 items-baseline justify-start px-3 py-1 text-base rounded-full {}",
-                                                if is_selected() { "bg-blue-300" } else { "bg-gray-200" }
-                                            )
-                                        on:click=move |_| {
-                                            game_ctx.users.update(|users| {
-                                                // check if user already exists
-                                                if users.iter().any(|u| u.id == user_id3) {
-                                                    // remove
-                                                    users.retain(|u| u.id != user_id3);
-                                                    return;
-                                                }
+                                    view!{
+                                        <button
+                                            type="button"
+                                            class=move ||
+                                                format!("flex gap-1 items-baseline justify-start px-3 py-1 text-base rounded-full {}",
+                                                    if is_selected() { "bg-blue-300" } else { "bg-gray-200" }
+                                                )
+                                            on:click=move |_| {
+                                                game_ctx.users.update(|users| {
+                                                    // check if user already exists
+                                                    if users.iter().any(|u| u.id == user_id3) {
+                                                        // remove
+                                                        users.retain(|u| u.id != user_id3);
+                                                        return;
+                                                    }
 
-                                                users.push(Player::new_player(user.id(), user.name()));
-                                            });
-                                        }
-                                    >
-                                        <span class="opacity-70 text-sm w-9">#{user_id}</span>
-                                        {user_name}
-                                    </button>
+                                                    users.push(Player::new_player(user.id(), user.name()));
+                                                });
+                                            }
+                                        >
+                                            <span class="opacity-70 text-sm w-9">#{user_id}</span>
+                                            {user_name}
+                                        </button>
+                                    }
                                 }
-                            }
-                        />
+                            />
+                        </div>
                     </div>
                     <form class="flex flex-col gap-2 w-full" on:submit=move |ev| {
                         ev.prevent_default();
