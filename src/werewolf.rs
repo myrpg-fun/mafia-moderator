@@ -37,6 +37,7 @@ pub enum WerewolfRole {
     Lycan,
     Mayor,
     Hunter,
+    Ghost,
     //    ParanormalInvestigator,
     Prince,
     Diseased,
@@ -67,7 +68,7 @@ const _WEREWOLF_COLORS: [&str; 12] = [
     "ring-blue-600/50",
 ];
 
-pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 23] = [
     RoleInfo::Icon(IconRoleInfo {
         role: Role::Werewolf(WerewolfRole::Villager),
         role_name: "Villagers",
@@ -107,7 +108,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Minion),
         role_name: "Minion",
-        role_icon: "",
+        role_icon: "👺",
         additional_role: None,
         role_name_color: "red-950",
         prepare_description: "Выберите игрока Minion",
@@ -122,7 +123,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Cursed),
         role_name: "Cursed",
-        role_icon: "",
+        role_icon: "😈",
         additional_role: None,
         role_name_color: "purple-950",
         prepare_description: "Выберите игрока Cursed",
@@ -214,15 +215,23 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Lycan),
         role_name: "Lycan",
-        role_icon: "",
+        role_icon: "🌓",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Lycan",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Ghost),
+        role_name: "Ghost",
+        role_icon: "👻",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Ghost",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Prince),
         role_name: "Prince",
-        role_icon: "",
+        role_icon: "👑",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Prince",
@@ -230,7 +239,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Diseased),
         role_name: "Diseased",
-        role_icon: "",
+        role_icon: "🦠",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Diseased",
@@ -238,7 +247,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::VillageIdiot),
         role_name: "Village Idiot",
-        role_icon: "",
+        role_icon: "🤪",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Village Idiot",
@@ -246,7 +255,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Hunter),
         role_name: "Hunter",
-        role_icon: "",
+        role_icon: "🎯",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Hunter",
@@ -254,7 +263,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::MadBomber),
         role_name: "Mad Bomber",
-        role_icon: "",
+        role_icon: "💣",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Mad Bomber",
@@ -262,11 +271,13 @@ pub const WEREWOLF_ROLES: [RoleInfo; 22] = [
 ];
 
 #[derive(Clone, Debug, PartialEq)]
-enum WerewolfLogs {
+enum WerewolfHint {
     Mayor(Player),
     Cursed(Player),
     LostHeart(Player),
+    Spellcaster(Player),
     Killed(Player, HashSet<Role>),
+    Seer(Vec<Player>),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1350,6 +1361,7 @@ fn DayVote() -> impl IntoView {
                 {
                     user.additional_role
                         .remove(&Role::Werewolf(WerewolfRole::ToughGuy));
+                    user.was_killed = true;
                     return;
                 }
 
@@ -1396,32 +1408,42 @@ fn DayVote() -> impl IntoView {
     });
 
     let game_log = create_memo(move |_| {
-        let mut log = Vec::<WerewolfLogs>::new();
+        let mut log = Vec::<WerewolfHint>::new();
 
-        let users = game_ctx.users.get().into_iter();
+        let users = game_ctx.users.get();
 
-        users.clone().for_each(|user| {
+        users.iter().for_each(|user| {
             if user.was_killed && !user.is_alive {
-                log.push(WerewolfLogs::Killed(user.clone(), user.choosed_by.clone()));
+                log.push(WerewolfHint::Killed(user.clone(), user.choosed_by.clone()));
             }
         });
 
-        users.clone().for_each(|user| {
+        users.iter().for_each(|user| {
             if user.role.contains(&Role::Werewolf(WerewolfRole::ToughGuy))
                 && user.is_alive
                 && user.was_killed
             {
-                log.push(WerewolfLogs::LostHeart(user.clone()));
+                log.push(WerewolfHint::LostHeart(user.clone()));
             }
         });
 
-        users.for_each(|user| {
+        users.iter().for_each(|user| {
+            if user
+                .choosed_by
+                .contains(&Role::Werewolf(WerewolfRole::Spellcaster))
+                && user.is_alive
+            {
+                log.push(WerewolfHint::Spellcaster(user.clone()));
+            }
+        });
+
+        users.iter().for_each(|user| {
             if user
                 .additional_role
                 .contains(&Role::Werewolf(WerewolfRole::Mayor))
                 && user.is_alive
             {
-                log.push(WerewolfLogs::Mayor(user.clone()));
+                log.push(WerewolfHint::Mayor(user.clone()));
             }
         });
 
@@ -1494,13 +1516,13 @@ fn DayVote() -> impl IntoView {
 }
 
 #[component]
-fn DisplayLogs(logs: Memo<Vec<WerewolfLogs>>) -> impl IntoView {
+fn DisplayLogs(logs: Memo<Vec<WerewolfHint>>) -> impl IntoView {
     view! {
         <div class="flex flex-col gap-1 relative text-xs">
             {move || logs.get().iter().map(
                 |log| {
                     match log {
-                        WerewolfLogs::Killed(user, killed_by) => {
+                        WerewolfHint::Killed(user, killed_by) => {
                             let user = user.clone();
                             view!{
                                 <div class="w-full flex items-center justify-start gap-1 text-gray-500">
@@ -1508,7 +1530,7 @@ fn DisplayLogs(logs: Memo<Vec<WerewolfLogs>>) -> impl IntoView {
                                 </div>
                             }.into_view()
                         },
-                        WerewolfLogs::Mayor(user) => {
+                        WerewolfHint::Mayor(user) => {
                             let user = user.clone();
                             view!{
                                 <div class="w-full flex items-center justify-start gap-1 text-gray-500">
@@ -1516,19 +1538,39 @@ fn DisplayLogs(logs: Memo<Vec<WerewolfLogs>>) -> impl IntoView {
                                 </div>
                             }.into_view()
                         },
-                        WerewolfLogs::Cursed(user) => {
+                        WerewolfHint::Spellcaster(user) => {
                             let user = user.clone();
                             view!{
                                 <div class="w-full flex items-center justify-start gap-1 text-gray-500">
-                                    "😈"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"Cursed."
+                                    "🤐"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"не может говорить."
                                 </div>
                             }.into_view()
                         },
-                        WerewolfLogs::LostHeart(user) => {
+                        WerewolfHint::Cursed(user) => {
                             let user = user.clone();
                             view!{
                                 <div class="w-full flex items-center justify-start gap-1 text-gray-500">
-                                    "💔"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"потеряла жизнь."
+                                    "😈"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"станет оборотнем если его съедят."
+                                </div>
+                            }.into_view()
+                        },
+                        WerewolfHint::LostHeart(user) => {
+                            let user = user.clone();
+                            view!{
+                                <div class="w-full flex items-center justify-start gap-1 text-gray-500">
+                                    "💔"<span class="bg-gray-100 text-gray-900 px-1 rounded-md">{user.name}</span>"потерял жизнь."
+                                </div>
+                            }.into_view()
+                        }
+                        WerewolfHint::Seer(users) => {
+                            view!{
+                                <div class="w-full flex-wrap flex items-center justify-start gap-1.5 text-gray-500">
+                                    "🔍"{users.iter().map(|user| {
+                                        let user = user.clone();
+                                        view!{
+                                            <span class="bg-gray-100 text-gray-900 px-1 rounded-md whitespace-nowrap">{user.name}</span>
+                                        }.into_view()
+                                    }).collect::<Vec<_>>().into_view()}"оборотни."
                                 </div>
                             }.into_view()
                         }
@@ -2079,14 +2121,15 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
         }
     };
 
-    let game_log: Memo<Vec<WerewolfLogs>> = create_memo(move |_| {
-        let mut log = Vec::<WerewolfLogs>::new();
+    let game_log: Memo<Vec<WerewolfHint>> = create_memo(move |_| {
+        let mut log = Vec::<WerewolfHint>::new();
 
-        let users = game_ctx.users.get().into_iter();
+        let users = game_ctx.users.get();
 
         if role_info.get_role() == Role::Werewolf(WerewolfRole::Werewolf) {
-            users.for_each(|user| {
+            users.iter().for_each(|user| {
                 if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed))
+                    && !user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                     && user.is_alive
                     && !user
                         .choosed_by
@@ -2098,9 +2141,24 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
                         .additional_role
                         .contains(&Role::Werewolf(WerewolfRole::Priest))
                 {
-                    log.push(WerewolfLogs::Cursed(user.clone()));
+                    log.push(WerewolfHint::Cursed(user.clone()));
                 }
             });
+        }
+
+        if role_info.get_role() == Role::Werewolf(WerewolfRole::Seer) {
+            let mut ww_users = Vec::<Player>::new();
+
+            users.iter().for_each(|user| {
+                if (user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                    || user.role.contains(&Role::Werewolf(WerewolfRole::Lycan)))
+                    && user.is_alive
+                {
+                    ww_users.push(user.clone());
+                }
+            });
+
+            log.push(WerewolfHint::Seer(ww_users));
         }
 
         log

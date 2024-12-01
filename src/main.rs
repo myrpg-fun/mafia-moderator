@@ -41,8 +41,21 @@ pub fn rust_create_new_game_log(log_users: Vec<UserLogs>, is_mafia: bool) {
     let js_users = serde_wasm_bindgen::to_value(&log_users);
 
     if let Ok(js_users) = js_users {
-        // Call the JS function
-        createNewGameLog(&js_users, is_mafia);
+        wasm_bindgen_futures::spawn_local(async move {
+            let save_log_state =
+                use_context::<RwSignal<SaveLogState>>().expect("SaveLogState not found");
+
+            save_log_state.set(SaveLogState(true));
+
+            // Convert JsValue to Promise
+            let promise_as_js_value = createNewGameLog(&js_users, is_mafia);
+            let promise = js_sys::Promise::from(promise_as_js_value);
+
+            // Convert the promise to a future
+            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+
+            save_log_state.set(SaveLogState(false));
+        });
     }
 }
 
@@ -162,21 +175,6 @@ const STORAGE_LAST_STATE: &str = "last_state";
 
 impl Default for GameContext {
     fn default() -> Self {
-        // let starting_users = window()
-        //     .local_storage()
-        //     .ok()
-        //     .flatten()
-        //     .and_then(|storage| {
-        //         storage
-        //             .get_item(STORAGE_SELECTED_USERS_KEY)
-        //             .ok()
-        //             .flatten()
-        //             .and_then(|value| serde_json::from_str::<Vec<(String, String)>>(&value).ok())
-        //     })
-        //     .unwrap_or_default()
-        //     .into_iter()
-        //     .map(|(id, name)| Player::new_player(id, name));
-
         // load from local storage
         let local_storage = window().local_storage().ok().flatten();
         let starting_users = local_storage.and_then(|storage| {
@@ -231,16 +229,21 @@ impl GameContext {
     }
 }
 
-const STORAGE_SELECTED_USERS_KEY: &str = "mafia_users";
-
 #[derive(Clone, Debug)]
 struct GlobalInfo {
     is_authenticated: RwSignal<bool>,
     users: RwSignal<Vec<UserSheetInfo>>,
 }
 
+#[derive(Clone, Debug)]
+struct SaveLogState(bool);
+
 #[component]
 fn StartScreen() -> impl IntoView {
+    let save_log_state = create_rw_signal(SaveLogState(false));
+
+    provide_context(save_log_state);
+
     let game_context = GameContext::default();
 
     provide_context(game_context.clone());
@@ -365,6 +368,13 @@ fn StartScreen() -> impl IntoView {
 
     view! {
         <div class="relative w-full h-full p-4 overflow-hidden">
+            <Show when={move || save_log_state.get().0}>
+                <div class="absolute top-1 left-1 right-1 z-10">
+                    <div class="bg-red-500 text-white flex items-center justify-center px-4 py-1 rounded-lg w-full">
+                        "Сохранение игры..."
+                    </div>
+                </div>
+            </Show>
             {game_state_view}
         </div>
     }
