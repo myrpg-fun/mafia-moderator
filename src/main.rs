@@ -313,15 +313,12 @@ fn StartScreen() -> impl IntoView {
                             logging::log!("{:?}", gl_users);
                         });
 
+                        let global_info_users = global_info.users.get_untracked();
+
                         // Update the selected user names
                         game_context_clone.users.update(move |users| {
                             for user in users.iter_mut() {
-                                if let Some(info) = global_info
-                                    .users
-                                    .get_untracked()
-                                    .iter()
-                                    .find(|u| *u == user)
-                                {
+                                if let Some(info) = global_info_users.iter().find(|u| *u == user) {
                                     user.name = info.name().to_string();
                                 }
                             }

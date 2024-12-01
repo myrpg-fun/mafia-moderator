@@ -862,7 +862,7 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         <div class="grid grid-cols-3 gap-1">
             <For
                 each=users
-                key=|user| format!("{}-{}-{}-{}", user.name, user.role.len(), user.additional_role.len(), user.choosed_by.len())
+                key=|user| format!("{}-{}-{}-{}", user.id, user.role.len(), user.additional_role.len(), user.choosed_by.len())
                 children=move |user| {
                     let user_clone = user.clone();
 
@@ -1236,14 +1236,14 @@ fn SelectUsersForVote(
             .filter(|u| u.is_alive && u.role.contains(&Role::Werewolf(WerewolfRole::Werewolf)))
             .count()
     };
-    let is_selected = move |user: &Player| selected_users.get().contains(&user.name);
+    let is_selected = move |user: &Player| selected_users.get().contains(&user.id);
 
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len}", оборотней: "{werewolf_alive_len}</div>
         <div class="grid grid-cols-3 gap-1">
             <For
                 each=users
-                key=|user| user.name.clone()
+                key=|user| user.id.clone()
                 children=move |user| {
                     let disabled = is_disabled(&user);
                     let highlighted = is_highlighted(&user);
@@ -1259,10 +1259,10 @@ fn SelectUsersForVote(
                             is_selected=is_selected
                             on:click=move |_| {
                                 set_selected_users.update(|selected_users| {
-                                    if selected_users.contains(&user.name) {
-                                        selected_users.remove(&user.name);
+                                    if selected_users.contains(&user.id) {
+                                        selected_users.remove(&user.id);
                                     } else {
-                                        selected_users.insert(user.name.clone());
+                                        selected_users.insert(user.id.clone());
                                     }
                                 });
                             }
@@ -1318,7 +1318,7 @@ fn DayVote() -> impl IntoView {
             }
 
             users.iter_mut().for_each(|u| {
-                if selected_users.contains(&u.name) {
+                if selected_users.contains(&u.id) {
                     kill_user(u, round);
                 }
             });
@@ -1372,7 +1372,7 @@ fn DayVote() -> impl IntoView {
             }
 
             users.iter_mut().for_each(|u| {
-                if selected_users.contains(&u.name) {
+                if selected_users.contains(&u.id) {
                     kill_user(u, round);
                 }
             });
@@ -1381,6 +1381,7 @@ fn DayVote() -> impl IntoView {
         });
 
         kill_player_choose.set(false);
+        clock_choose.set(true);
     };
 
     create_effect(move |_| {
@@ -1404,6 +1405,7 @@ fn DayVote() -> impl IntoView {
     create_effect(move |_| {
         if start_player_choose.get() && !highlighted_player.get().is_empty() {
             start_player_choose.set(false);
+            clock_choose.set(true);
         }
     });
 
@@ -1450,7 +1452,7 @@ fn DayVote() -> impl IntoView {
         log
     });
 
-    let is_highlighted = move |user: &Player| highlighted_player.get().contains(&user.name);
+    let is_highlighted = move |user: &Player| highlighted_player.get().contains(&user.id);
 
     view! {
         {move ||
@@ -2067,7 +2069,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
         let selected_users = selected_users.get();
         game_ctx.users.update(|users| {
             users.iter_mut().for_each(|u| {
-                if selected_users.contains(&u.name) {
+                if selected_users.contains(&u.id) {
                     u.choosed_by.insert(role);
                 }
             })

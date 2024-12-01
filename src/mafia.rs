@@ -711,7 +711,7 @@ fn SelectUsersForVote(
 
     let users = move || mafia_context.users.get();
     let users_alive_len = move || users().iter().filter(|u| u.is_alive).count();
-    let is_selected = move |user: &Player| selected_users.get().contains(&user.name);
+    let is_selected = move |user: &Player| selected_users.get().contains(&user.id);
 
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len}</div>
@@ -733,13 +733,13 @@ fn SelectUsersForVote(
                             killed=killed
                             on:click=move |_| {
                                 set_selected_users.update(|selected_users| {
-                                    if selected_users.contains(&user.name) {
-                                        selected_users.remove(&user.name);
+                                    if selected_users.contains(&user.id) {
+                                        selected_users.remove(&user.id);
                                     } else {
                                         if is_single_select {
                                             selected_users.clear();
                                         }
-                                        selected_users.insert(user.name.clone());
+                                        selected_users.insert(user.id.clone());
                                     }
                                 });
                             }
@@ -768,7 +768,7 @@ fn DayVote() -> impl IntoView {
             clear_choosed_by(users, round);
 
             users.iter_mut().for_each(|u| {
-                if selected_users.contains(&u.name) {
+                if selected_users.contains(&u.id) {
                     let mut citizen_history = HashSet::new();
                     citizen_history.insert(Role::Mafia(MafiaRole::Citizen));
                     u.history_by.push((round+1, citizen_history));
@@ -966,7 +966,7 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
         let selected_user = selected_users.get();
         game_ctx.users.update(|users| {
             users.iter_mut().for_each(|u| {
-                if selected_user.contains(&u.name) {
+                if selected_user.contains(&u.id) {
                     u.choosed_by.insert(role);
                 }
             });
