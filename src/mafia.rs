@@ -1429,10 +1429,47 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
         || role_info.get_role() == Role::Mafia(MafiaRole::Priest) && user.role.contains(&&Role::Mafia(MafiaRole::Maniac))
     };
 
+    let game_log: Memo<Vec<MafiaHint>> = create_memo(move |_| {
+        let mut log = Vec::<MafiaHint>::new();
+
+        let users = game_ctx.users.get();
+
+        if role_info.get_role() == Role::Mafia(MafiaRole::Detective) {
+            let mut ww_users = Vec::<Player>::new();
+
+            users.iter().for_each(|user| {
+                if (user.role.contains(&Role::Mafia(MafiaRole::Mafia)))
+                    && user.is_alive
+                {
+                    ww_users.push(user.clone());
+                }
+            });
+
+            log.push(MafiaHint::Detective(ww_users));
+        }
+
+        if role_info.get_role() == Role::Mafia(MafiaRole::Priest) {
+            let mut ww_users = Vec::<Player>::new();
+
+            users.iter().for_each(|user| {
+                if (user.role.contains(&Role::Mafia(MafiaRole::Maniac)))
+                    && user.is_alive
+                {
+                    ww_users.push(user.clone());
+                }
+            });
+
+            log.push(MafiaHint::Priest(ww_users));
+        }
+
+        log
+    });    
+
     view! {
         <h2>
             {night_description}
         </h2>
+        <DisplayLogs logs=game_log />        
         <div class="flex-1 flex flex-col relative overflow-auto px-4 -mx-4">
             <div class="flex-1"></div>
             <div class="flex flex-col gap-1 w-full">
