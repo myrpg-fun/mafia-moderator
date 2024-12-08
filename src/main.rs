@@ -238,65 +238,8 @@ struct GlobalInfo {
 #[derive(Clone, Debug)]
 struct SaveLogState(bool);
 
-fn prevent_touch_pan_listeners() -> Result<(), JsValue> {
-    let window: Window = web_sys::window().expect("должно быть доступно окно");
-    let document: Document = window.document().expect("документ должен быть доступен");
-
-    let closure_touchmove = Closure::wrap(Box::new(|event: web_sys::TouchEvent| {
-        event.prevent_default();
-    }) as Box<dyn FnMut(_)>);
-
-    let closure_gesturestart = Closure::wrap(Box::new(|event: web_sys::UiEvent| {
-        event.prevent_default();
-    }) as Box<dyn FnMut(_)>);
-
-    let closure_gesturechange = Closure::wrap(Box::new(|event: web_sys::UiEvent| {
-        event.prevent_default();
-    }) as Box<dyn FnMut(_)>);
-
-    let closure_gestureend = Closure::wrap(Box::new(|event: web_sys::UiEvent| {
-        event.prevent_default();
-    }) as Box<dyn FnMut(_)>);
-
-    // Добавляем обработчики событий
-
-    // document.addEventListener('touchmove', function(event) {
-    //     event.preventDefault();
-    // }, { passive: false });
-
-    document.add_event_listener_with_callback_and_add_event_listener_options(
-        "touchmove",
-        closure_touchmove.as_ref().unchecked_ref(),
-        &{
-            let options = web_sys::AddEventListenerOptions::new();
-            options.set_passive(false);
-
-            options
-        },
-    )?;
-
-    document.add_event_listener_with_callback(
-        "gesturestart",
-        closure_gesturestart.as_ref().unchecked_ref(),
-    )?;
-    document.add_event_listener_with_callback(
-        "gesturechange",
-        closure_gesturechange.as_ref().unchecked_ref(),
-    )?;
-    document.add_event_listener_with_callback(
-        "gestureend",
-        closure_gestureend.as_ref().unchecked_ref(),
-    )?;
-
-    Ok(())
-}
-
 #[component]
 fn StartScreen() -> impl IntoView {
-    if let Err(e) = prevent_touch_pan_listeners() {
-        web_sys::console::error_1(&e);
-    }
-
     let save_log_state = create_rw_signal(SaveLogState(false));
 
     provide_context(save_log_state);
