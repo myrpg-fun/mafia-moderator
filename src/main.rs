@@ -259,10 +259,22 @@ fn prevent_touch_pan_listeners() -> Result<(), JsValue> {
     }) as Box<dyn FnMut(_)>);
 
     // Добавляем обработчики событий
-    document.add_event_listener_with_callback(
+
+    // document.addEventListener('touchmove', function(event) {
+    //     event.preventDefault();
+    // }, { passive: false });
+
+    document.add_event_listener_with_callback_and_add_event_listener_options(
         "touchmove",
         closure_touchmove.as_ref().unchecked_ref(),
+        &{
+            let options = web_sys::AddEventListenerOptions::new();
+            options.set_passive(false);
+
+            options
+        },
     )?;
+
     document.add_event_listener_with_callback(
         "gesturestart",
         closure_gesturestart.as_ref().unchecked_ref(),
