@@ -52,7 +52,7 @@ pub enum WerewolfRole {
     Pacifist,
     // ApprenticeSeer,
     // AuraSeer,
-    OldHug,
+    OldHag,
     TroubleMaker,
     Tanner,
 }
@@ -301,12 +301,12 @@ pub const WEREWOLF_ROLES: [RoleInfo; 29] = [
         prepare_description: "Выберите игрока TroubleMaker",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
-        role: Role::Werewolf(WerewolfRole::OldHug),
-        role_name: "Old Hug",
+        role: Role::Werewolf(WerewolfRole::OldHag),
+        role_name: "Old Hag",
         role_icon: "👵",
         additional_role: None,
         role_name_color: "blue-950",
-        prepare_description: "Выберите игрока Old Hug",
+        prepare_description: "Выберите игрока Old Hag",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::MadBomber),
