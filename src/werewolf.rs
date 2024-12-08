@@ -8,7 +8,6 @@ use std::hash::Hash;
 
 use crate::roles::*;
 use crate::rust_create_new_game_log;
-use crate::user;
 use crate::user::*;
 use crate::GameContext;
 use crate::GameContextHistory;
@@ -38,19 +37,24 @@ pub enum WerewolfRole {
     Mayor,
     Hunter,
     Ghost,
-    //    ParanormalInvestigator,
+    ParanormalInvestigator,
     Prince,
     Diseased,
     Mason,
     Lovers,
-    // Doppelganger,
+    Doppelganger,
+    Mentalist,
     // AlphaWolf,
     MadBomber,
     //*** TODO:
     Revealer,
     VillageIdiot,
+    Pacifist,
     // ApprenticeSeer,
     // AuraSeer,
+    OldHug,
+    TroubleMaker,
+    Tanner,
 }
 
 const _WEREWOLF_COLORS: [&str; 12] = [
@@ -68,7 +72,7 @@ const _WEREWOLF_COLORS: [&str; 12] = [
     "ring-blue-600/50",
 ];
 
-pub const WEREWOLF_ROLES: [RoleInfo; 23] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 29] = [
     RoleInfo::Icon(IconRoleInfo {
         role: Role::Werewolf(WerewolfRole::Villager),
         role_name: "Villagers",
@@ -157,6 +161,26 @@ pub const WEREWOLF_ROLES: [RoleInfo; 23] = [
         prepare_description: "Выберите игрока Seer",
         night_description: "Кого проверит Seer?",
         targeting_rules: NightTargetingRules::NotTheSame,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Mentalist),
+        check_role: None,
+        role_name: "Mentalist",
+        role_name_color: "green-950",
+        role_icon: "👁️",
+        prepare_description: "Выберите игрока Mentalist",
+        night_description: "Выберите двух игроков, кого проверил Mentalist?",
+        targeting_rules: NightTargetingRules::Anyone,
+    }),
+    RoleInfo::Night(NightRoleInfo {
+        role: Role::Werewolf(WerewolfRole::ParanormalInvestigator),
+        check_role: None,
+        role_name: "P.I.",
+        role_name_color: "green-950",
+        role_icon: "📸",
+        prepare_description: "Выберите игрока Paranormal Investigator",
+        night_description: "Выберите 3х соседних игроков, кого проверил Paranormal Investigator?",
+        targeting_rules: NightTargetingRules::OnlyOne,
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Spellcaster),
@@ -248,9 +272,17 @@ pub const WEREWOLF_ROLES: [RoleInfo; 23] = [
         role: Role::Werewolf(WerewolfRole::VillageIdiot),
         role_name: "Village Idiot",
         role_icon: "🤪",
-        additional_role: None,
+        additional_role: Some(Role::Werewolf(WerewolfRole::VillageIdiot)),
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Village Idiot",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Pacifist),
+        role_name: "Pacifist",
+        role_icon: "🕊️",
+        additional_role: Some(Role::Werewolf(WerewolfRole::Pacifist)),
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Pacifist",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Hunter),
@@ -261,12 +293,36 @@ pub const WEREWOLF_ROLES: [RoleInfo; 23] = [
         prepare_description: "Выберите игрока Hunter",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::TroubleMaker),
+        role_name: "TroubleMaker",
+        role_icon: "🔥",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока TroubleMaker",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::OldHug),
+        role_name: "Old Hug",
+        role_icon: "👵",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Old Hug",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::MadBomber),
         role_name: "Mad Bomber",
         role_icon: "💣",
         additional_role: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Mad Bomber",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Tanner),
+        role_name: "Tanner",
+        role_icon: "🧵",
+        additional_role: None,
+        role_name_color: "gray-950",
+        prepare_description: "Выберите игрока Tanner",
     }),
 ];
 
@@ -451,6 +507,12 @@ fn SelectWinners(
 
     let roles = [
         RoleInfo::Icon(IconRoleInfo {
+            role: Role::Werewolf(WerewolfRole::Tanner),
+            role_name: "Таннер",
+            role_name_color: "gray-950",
+            role_icon: "🧵",
+        }),
+        RoleInfo::Icon(IconRoleInfo {
             role: Role::Werewolf(WerewolfRole::Werewolf),
             role_name: "Оборотни",
             role_name_color: "red-950",
@@ -514,16 +576,17 @@ fn SelectWinners(
                 rounds[lastRound] = format!("{} {}", rounds[lastRound], role);
             }
 
-            let winner = (selected_winners
-                .get()
-                .contains(&Role::Werewolf(WerewolfRole::Werewolf))
+            let selected_winners = selected_winners.get();
+
+            let winner = (selected_winners.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 && (user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                     || user.role.contains(&Role::Werewolf(WerewolfRole::Minion))))
-                || (selected_winners
-                    .get()
-                    .contains(&Role::Werewolf(WerewolfRole::Villager))
+                || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Villager))
                     && !user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
-                    && !user.role.contains(&Role::Werewolf(WerewolfRole::Minion)));
+                    && !user.role.contains(&Role::Werewolf(WerewolfRole::Tanner))
+                    && !user.role.contains(&Role::Werewolf(WerewolfRole::Minion)))
+                || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Tanner))
+                    && user.role.contains(&Role::Werewolf(WerewolfRole::Tanner)));
 
             let score = 0;
 
@@ -1063,7 +1126,7 @@ fn Separator() -> impl IntoView {
 #[component]
 fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> impl IntoView {
     view! {
-        <div class="flex flex-col gap-0.5 flex-wrap min-h-4">
+        <div class="flex gap-0.5 flex-wrap min-h-4">
             {
                 current.iter().map(|role| {
                     let role = *role;
@@ -2122,11 +2185,21 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     let role_info = role_info.clone();
     let is_highlighted = move |user: &Player| {
         if role_info.get_role() == Role::Werewolf(WerewolfRole::Seer) {
-            user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
-                || user.role.contains(&Role::Werewolf(WerewolfRole::Lycan))
-        } else {
-            false
+            return user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                || user.role.contains(&Role::Werewolf(WerewolfRole::Lycan));
         }
+
+        if role_info.get_role() == Role::Werewolf(WerewolfRole::Mentalist) {
+            return user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                || user.role.contains(&Role::Werewolf(WerewolfRole::Minion));
+        }
+
+        if role_info.get_role() == Role::Werewolf(WerewolfRole::ParanormalInvestigator) {
+            return user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
+                || user.role.contains(&Role::Werewolf(WerewolfRole::Lycan));
+        }
+
+        false
     };
 
     let game_log: Memo<Vec<WerewolfHint>> = create_memo(move |_| {
