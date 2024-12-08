@@ -855,11 +855,23 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
     let users = move || mafia_context.users.get();
+    let users_len = move || users().len();
     let role = role_info.get_role();
     let role_info = role_info.clone();
 
+    let grid_style = move || {
+        let rows = 2;
+        let cols = (users_len() as f32 / rows as f32).ceil() as usize;
+
+        format!(
+            "grid-template-rows: repeat({}, minmax(0, 1fr));
+            grid-template-columns: repeat({}, minmax(0, 1fr));",
+            cols, rows
+        )
+    };
+
     view! {
-        <div class="grid grid-cols-3 gap-1">
+        <div class="grid grid-flow-col gap-y-1 gap-x-3" style=grid_style>
             <For
                 each=users
                 key=|user| format!("{}-{}-{}-{}", user.id, user.role.len(), user.additional_role.len(), user.choosed_by.len())
@@ -1053,25 +1065,6 @@ fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> 
     view! {
         <div class="flex flex-col gap-0.5 flex-wrap min-h-4">
             {
-                hystory.iter().map(|(round, roles)| {
-                    view!{
-                        <div class="flex items-center">
-                            <div class="text-xs opacity-60 mr-0.5">{round.into_view()}"."</div>
-                            {
-                                roles.iter().map(|role| {
-                                    let role = *role;
-
-                                    view!{
-                                        <UserRoleIcon role=role is_history=UserRoleIconType::History />
-                                    }.into_view()
-                                }).collect::<Vec<_>>().into_view()
-                            }
-                        </div>
-                    }
-                }).collect::<Vec<_>>().into_view()
-            }
-            <div class="flex items-center gap-0.5">
-            {
                 current.iter().map(|role| {
                     let role = *role;
 
@@ -1080,7 +1073,6 @@ fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> 
                     }
                 }).collect::<Vec<_>>().into_view()
             }
-            </div>
         </div>
     }
 }
@@ -1096,8 +1088,12 @@ fn UserRoleIcon(role: Role, is_history: UserRoleIconType) -> impl IntoView {
     WEREWOLF_ROLES
         .iter()
         .find(|r| r.get_role() == role)
-        .map(|role_info| {
-            view! {
+        .map(|role_info| match is_history {
+            UserRoleIconType::Additional => view! {
+                " "{role_info.get_role_icon()}
+            }
+            .into_view(),
+            _ => view! {
                 <div
                     class=move || match is_history {
                         UserRoleIconType::History => "text-xs opacity-80 w-4 h-4",
@@ -1108,6 +1104,7 @@ fn UserRoleIcon(role: Role, is_history: UserRoleIconType) -> impl IntoView {
                     {role_info.get_role_icon()}
                 </div>
             }
+            .into_view(),
         })
 }
 
@@ -1142,15 +1139,13 @@ fn UserRoleName(role: Role) -> impl IntoView {
 #[component]
 fn UserAdditionalRoles(roles: HashSet<Role>) -> impl IntoView {
     view! {
-        <div class="flex">
-            {
-                roles.iter().map(|role| {
-                    view!{
-                        <UserRoleIcon role=*role is_history=UserRoleIconType::Additional />
-                    }
-                }).collect::<Vec<_>>().into_view()
-            }
-        </div>
+        {
+            roles.iter().map(|role| {
+                view!{
+                    <UserRoleIcon role=*role is_history=UserRoleIconType::Additional />
+                }
+            }).collect::<Vec<_>>().into_view()
+        }
     }
 }
 
@@ -1238,9 +1233,20 @@ fn SelectUsersForVote(
     };
     let is_selected = move |user: &Player| selected_users.get().contains(&user.id);
 
+    let grid_style = move || {
+        let rows = 2;
+        let cols = (users().len() as f32 / rows as f32).ceil() as usize;
+
+        format!(
+            "grid-template-rows: repeat({}, minmax(0, 1fr));
+            grid-template-columns: repeat({}, minmax(0, 1fr));",
+            cols, rows
+        )
+    };
+
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len}", оборотней: "{werewolf_alive_len}</div>
-        <div class="grid grid-cols-3 gap-1">
+        <div class="grid grid-flow-col gap-y-1 gap-x-3" style=grid_style>
             <For
                 each=users
                 key=|user| user.id.clone()
