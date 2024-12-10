@@ -474,15 +474,13 @@ fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
 fn SelectUserForRole<'a>(role: &'a RoleInfo) -> impl IntoView {
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
-    let users = move || {
-        mafia_context.users.get()
-    };
     let role = role.get_role();
+    let users_sorted = move || users_sorted(mafia_context.users.get());
 
     view! {
-        <div class="grid grid-cols-3 gap-1">
+        <div class="grid grid-cols-2 gap-y-1 gap-x-3">
             <For
-                each=users
+                each=users_sorted
                 key=|user| format!("{}_{}", user.id.clone(), user.role.len())
                 children=move |user| {
                     let user_clone = user.clone();
@@ -746,6 +744,32 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     }
 }
 
+fn users_sorted(users: Vec<Player>) -> Vec<Player> {
+    // Clone and sort the users by a desired attribute if needed. Here, sorting by ID as an example.
+    let len = users.len();
+    let mut rearranged_users = Vec::with_capacity(len);
+
+    let is_odd = len % 2 != 0;
+    // If the length is odd, add the last middle element.
+    if is_odd {
+        rearranged_users.push(users[len / 2].clone());
+    }
+
+    for i in 0..len / 2 {
+        let i = len / 2 - i - 1;
+        // Add the i-th from the end and the i-th from the start in pairs.
+        if is_odd {
+            rearranged_users.push(users[len - i - 1].clone());
+            rearranged_users.push(users[i].clone());
+        } else {
+            rearranged_users.push(users[i].clone());
+            rearranged_users.push(users[len - i - 1].clone());
+        }
+    }
+
+    rearranged_users
+}
+
 #[component]
 fn SelectUsersForVote(
     selected_users: ReadSignal<HashSet<String>>,
@@ -767,12 +791,13 @@ fn SelectUsersForVote(
             .count()
     };
     let is_selected = move |user: &Player| selected_users.get().contains(&user.id);
+    let users_sorted = move || users_sorted(mafia_context.users.get());
 
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len}", мафий: "{mafia_alive_len}</div>
-        <div class="grid grid-cols-3 gap-1">
+        <div class="grid grid-cols-2 gap-y-1 gap-x-3">
             <For
-                each=users
+                each=users_sorted
                 key=|user| user.id.clone()
                 children=move |user| {
                     let disabled = is_disabled(&user);

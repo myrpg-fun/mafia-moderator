@@ -170,7 +170,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 29] = [
         role_icon: "👁️",
         prepare_description: "Выберите игрока Mentalist",
         night_description: "Выберите двух игроков, кого проверил Mentalist?",
-        targeting_rules: NightTargetingRules::Anyone,
+        targeting_rules: NightTargetingRules::NotTheSame,
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::ParanormalInvestigator),
@@ -917,26 +917,14 @@ fn SetupRolesHeader<'a>(role: &'a RoleInfo) -> impl IntoView {
 fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     let mafia_context = use_context::<GameContext>().expect("MafiaContext not found");
 
-    let users = move || mafia_context.users.get();
-    let users_len = move || users().len();
     let role = role_info.get_role();
     let role_info = role_info.clone();
-
-    let grid_style = move || {
-        let rows = 2;
-        let cols = (users_len() as f32 / rows as f32).ceil() as usize;
-
-        format!(
-            "grid-template-rows: repeat({}, minmax(0, 1fr));
-            grid-template-columns: repeat({}, minmax(0, 1fr));",
-            cols, rows
-        )
-    };
+    let users_sorted = move || users_sorted(mafia_context.users.get());
 
     view! {
-        <div class="grid grid-flow-col gap-y-1 gap-x-3" style=grid_style>
+        <div class="grid grid-cols-2 gap-y-1 gap-x-3">
             <For
-                each=users
+                each=users_sorted
                 key=|user| format!("{}-{}-{}-{}", user.id, user.role.len(), user.additional_role.len(), user.choosed_by.len())
                 children=move |user| {
                     let user_clone = user.clone();
@@ -1275,6 +1263,32 @@ fn TurnButtons<'a>(role_info: &'a RoleInfo) -> impl IntoView {
     }
 }
 
+fn users_sorted(users: Vec<Player>) -> Vec<Player> {
+    // Clone and sort the users by a desired attribute if needed. Here, sorting by ID as an example.
+    let len = users.len();
+    let mut rearranged_users = Vec::with_capacity(len);
+
+    let is_odd = len % 2 != 0;
+    // If the length is odd, add the last middle element.
+    if is_odd {
+        rearranged_users.push(users[len / 2].clone());
+    }
+
+    for i in 0..len / 2 {
+        let i = len / 2 - i - 1;
+        // Add the i-th from the end and the i-th from the start in pairs.
+        if is_odd {
+            rearranged_users.push(users[len - i - 1].clone());
+            rearranged_users.push(users[i].clone());
+        } else {
+            rearranged_users.push(users[i].clone());
+            rearranged_users.push(users[len - i - 1].clone());
+        }
+    }
+
+    rearranged_users
+}
+
 #[component]
 fn SelectUsersForVote(
     selected_users: ReadSignal<HashSet<String>>,
@@ -1295,23 +1309,13 @@ fn SelectUsersForVote(
             .count()
     };
     let is_selected = move |user: &Player| selected_users.get().contains(&user.id);
-
-    let grid_style = move || {
-        let rows = 2;
-        let cols = (users().len() as f32 / rows as f32).ceil() as usize;
-
-        format!(
-            "grid-template-rows: repeat({}, minmax(0, 1fr));
-            grid-template-columns: repeat({}, minmax(0, 1fr));",
-            cols, rows
-        )
-    };
+    let users_sorted = move || users_sorted(mafia_context.users.get());
 
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len}", оборотней: "{werewolf_alive_len}</div>
-        <div class="grid grid-flow-col gap-y-1 gap-x-3" style=grid_style>
+        <div class="grid grid-col-2 gap-y-1 gap-x-3">
             <For
-                each=users
+                each=users_sorted
                 key=|user| user.id.clone()
                 children=move |user| {
                     let disabled = is_disabled(&user);
