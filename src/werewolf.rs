@@ -1313,7 +1313,7 @@ fn SelectUsersForVote(
 
     view! {
         <div class="text-sm">"Осталось игроков: "{users_alive_len}", оборотней: "{werewolf_alive_len}</div>
-        <div class="grid grid-col-2 gap-y-1 gap-x-3">
+        <div class="grid grid-cols-2 gap-y-1 gap-x-3">
             <For
                 each=users_sorted
                 key=|user| user.id.clone()
