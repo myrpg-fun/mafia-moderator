@@ -301,6 +301,10 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
                 });
             }
 
+            if winner {
+                score += 2;
+            }
+
             score
         }else if user.role.contains(&Role::Mafia(MafiaRole::Detective)) {
             let mut score = 0;
