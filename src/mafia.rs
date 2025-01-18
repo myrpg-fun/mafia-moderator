@@ -8,7 +8,6 @@ use leptos::*;
 use serde::Deserialize;
 use serde::Serialize;
 use crate::rust_create_new_game_log;
-use crate::user;
 use crate::user::*;
 use crate::roles::*;
 use crate::GameContextHistory;
@@ -296,7 +295,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Mafia))) {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(_, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Maniac)) {
+                    if roles.contains(&Role::Mafia(MafiaRole::Maniac)) && !roles.contains(&Role::Mafia(MafiaRole::Doctor)) && !roles.contains(&Role::Mafia(MafiaRole::Prostitute)) {
                         score += 1;
                     }
                 });
