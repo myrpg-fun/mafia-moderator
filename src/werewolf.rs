@@ -614,13 +614,17 @@ fn SelectWinners(
                 16
             };
 
+            let role_score = if winner { 1 } else { 0 };
+
             let best_player = best_players.contains(&user.id);
 
             logs.push(UserLogs {
                 id: user.id.clone(),
                 name: user.name.clone(),
+                is_guest: user.is_guest,
                 role,
                 role_index,
+                role_score,
                 best_player,
                 score,
                 winner,

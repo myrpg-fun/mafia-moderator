@@ -730,10 +730,8 @@ export async function createNewGameLog(users, isMafia) {
           .split("/");
         roleGames[1] = roleGames[1] * 1 + 1;
         if (isNaN(roleGames[1])) roleGames[1] = 1;
-        if (user.winner) {
-          roleGames[0] = roleGames[0] * 1 + 1;
-          if (isNaN(roleGames[0])) roleGames[0] = 1;
-        }
+        roleGames[0] = roleGames[0] * 1 + user.role_score;
+        if (isNaN(roleGames[0])) roleGames[0] = user.role_score;
         userSheet[user.role_index] = "'" + roleGames.join("/");
       } catch (err) {
         console.error(err);
@@ -811,10 +809,8 @@ export async function createNewGameLog(users, isMafia) {
           .split("/");
         roleGames[1] = roleGames[1] * 1 + 1;
         if (isNaN(roleGames[1])) roleGames[1] = 1;
-        if (user.winner) {
-          roleGames[0] = roleGames[0] * 1 + 1;
-          if (isNaN(roleGames[0])) roleGames[0] = 1;
-        }
+        roleGames[0] = roleGames[0] * 1 + user.role_score;
+        if (isNaN(roleGames[0])) roleGames[0] = user.role_score;
         userSheet[user.role_index] = "'" + roleGames.join("/");
       } catch (err) {
         console.error(err);

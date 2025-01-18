@@ -19,11 +19,13 @@ use werewolf::*;
 pub struct UserLogs {
     id: String,
     name: String,
+    is_guest: bool,
     role: String,
     score: u32,
     winner: bool,
     best_player: bool,
     role_index: u32,
+    role_score: u32,
     rounds: Vec<String>,
 }
 
@@ -389,7 +391,7 @@ fn SetupUsers() -> impl IntoView {
     view! {
         <div class="relative flex flex-col gap-4 w-full h-full">
             <h2 class="flex w-full items-baseline justify-start gap-2">
-                "Введите имена игроков ("{player_len}")"
+                "Выбранные игроки ("{player_len}")"
             </h2>
             {move ||
                 if is_adding_player.get() {
@@ -441,6 +443,7 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
 
     let is_creating_player = create_rw_signal(false);
     let filter_name = create_rw_signal("".to_string());
+    let comment = create_rw_signal("".to_string());
     let create_id = create_rw_signal("".to_string());
     let is_guest = create_rw_signal(false);
 
@@ -448,19 +451,26 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
         let filter = filter_name.get().to_lowercase().replace("#", "");
         global_users()
             .iter()
-            .filter(|u| u.id().contains(&filter) || u.name().to_lowercase().starts_with(&filter))
+            .filter(|u| {
+                u.id().contains(&filter)
+                    || u.name().to_lowercase().starts_with(&filter)
+                    || u.comment().to_lowercase().contains(&filter)
+            })
             .cloned()
             // sort by name
             .sorted_by(|a, b| a.name().to_lowercase().cmp(&b.name().to_lowercase()))
+            // sort by is_guest
+            .sorted_by(|a, b| b.is_guest().cmp(&a.is_guest()))
             .collect::<Vec<_>>()
     };
 
-    fn create_uniq_id(users: &[UserSheetInfo]) -> String {
+    fn create_uniq_id(db_users: &[UserSheetInfo], game_users: &[Player]) -> String {
         let mut id = 0;
         let mut is_unique = false;
         while !is_unique {
             id += 1;
-            is_unique = !users.iter().any(|u| u.id() == format!("{:03}", id));
+            is_unique = !db_users.iter().any(|u| u.id() == format!("{:03}", id))
+                && !game_users.iter().any(|u| u.id == format!("{:03}", id));
         }
 
         // return id with 00x padding
@@ -514,29 +524,56 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                             return;
                         }
 
+                        let is_guest_1 = is_guest.get();
+
                         // check id
                         let id = create_id.get();
                         if id.is_empty() {
                             return;
                         }
+
+                        let id = if is_guest_1 {
+                            create_uniq_id(&global_users(), &game_ctx.users.get())
+                        } else {id};
+
+                        let comment_str = comment.get();
+
                         // check if id is unique
                         if global_users().iter().any(|u| u.id() == id) {
                             return;
                         }
 
-                        createNewUser(&id, &name);
+                        if game_ctx.users.get().iter().any(|u| u.id == id) {
+                            return;
+                        }
+
+                        if !is_guest_1 {
+                            if !comment_str.is_empty() {
+                                // append comment to name
+                                createNewUser(&id, &format!("{} ({})", name, comment_str));
+                            }else{
+                                createNewUser(&id, &name);
+                            }
+                        }
 
                         let id_1 = id.clone();
                         let name_1 = name.clone();
+                        let comment_1 = comment_str.clone();
                         game_ctx.users.update(move |users| {
-                            users.push(Player::new_player(id_1, name_1));
+                            if is_guest_1 {
+                                users.push(Player::new_guest(id_1, name_1));
+                                return;
+                            }
+                            users.push(Player::new_player(id_1, name_1, comment_1));
                         });
 
+                        let id_1 = id.clone();
                         global_info.users.update(move |users| {
-                            users.push(UserSheetInfo::new(id, name));
+                            users.push(UserSheetInfo::new(id_1, name, comment_str, is_guest_1));
                         });
 
                         filter_name.set("".to_string());
+                        comment.set("".to_string());
                         is_creating_player.set(false);
                     }>
                         <div class="flex gap-2 w-full">
@@ -546,7 +583,7 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                             <input
                                 class=move ||
                                     format!("w-14 px-3 text-center text-sm py-1 border-gray-200 border rounded-full {}",
-                                        if is_guest.get() { "bg-gray-200 text-black/50" } else { "" }
+                                        if is_guest.get() { "bg-gray-200 text-black/50 opacity-50" } else { "" }
                                     )
                                 disabled=is_guest
                                 maxlength="3"
@@ -569,17 +606,33 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                                 }
                                 prop:value=filter_name
                             />
-                            // <button
-                            //     class=move || format!("flex justify-center px-4 py-1 rounded-full {}",
-                            //         if is_guest.get() { "bg-blue-300" } else { "bg-gray-200" }
-                            //     )
-                            //     type="button"
-                            //     on:click=move |_| {
-                            //         is_guest.set(!is_guest.get());
-                            //     }
-                            // >
-                            //     "Гость"
-                            // </button>
+                            <button
+                                class=move || format!("flex justify-center px-4 py-1 rounded-full {}",
+                                    if is_guest.get() { "bg-blue-300" } else { "bg-gray-200" }
+                                )
+                                type="button"
+                                on:click=move |_| {
+                                    is_guest.set(!is_guest.get());
+                                }
+                            >
+                                "Гость"
+                            </button>
+                        </div>
+                        <div class="flex gap-2 w-full">
+                            <input
+                                disabled=is_guest
+                                class=move ||
+                                    format!(
+                                    "flex-1 px-3 text-sm py-1 border-gray-200 border rounded-full {}",
+                                        if is_guest.get() { "bg-gray-200 text-black/50 opacity-50" } else { "" }
+                                    )
+                                placeholder="Комментарий"
+                                on:input=move |ev| {
+                                    let name = event_target_value(&ev);
+                                    comment.set(name);
+                                }
+                                prop:value=comment
+                            />
                         </div>
                         <div class="flex gap-2 w-full">
                             <button
@@ -603,14 +656,29 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                 view! {
                     <div class="flex-1 overflow-auto -mx-4 px-4">
                         <div class="flex flex-col justify-end gap-1">
+                            <button
+                                type="button"
+                                class=move ||
+                                    format!("flex gap-1 items-baseline justify-start px-3 py-1 mb-2 text-base rounded-full bg-red-200")
+                                on:click=move |_| {
+                                    game_ctx.users.update(|users| {
+                                        // clear all users
+                                        users.clear();
+                                    });
+                                }
+                            >
+                                "Убрать выбор всех игроков"
+                            </button>
                             <For
                                 each=filtered_users
                                 key=|user| user.id()
                                 children=move |user| {
-                                    let user_id = &user.id();
                                     let user_id2 = user.id();
                                     let user_id3 = user.id();
+                                    let user_id4 = user.id();
                                     let user_name = &user.name();
+                                    let user_comment = &user.comment();
+                                    let user_is_guest = user.is_guest();
 
                                     let is_selected = move || {
                                         let user_id_ref = &user_id2;
@@ -635,12 +703,19 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                                                         return;
                                                     }
 
-                                                    users.push(Player::new_player(user.id(), user.name()));
+                                                    if user.is_guest() {
+                                                        users.push(Player::new_guest(user.id(), user.name().to_string()));
+                                                    }else{
+                                                        users.push(Player::new_player(user.id().to_string(), user.name().to_string(), user.comment().to_string()));
+                                                    }
                                                 });
                                             }
                                         >
-                                            <span class="opacity-70 text-sm w-9">#{user_id}</span>
+                                            <span class="opacity-70 text-sm w-9">
+                                                {move || if user_is_guest { "guest".to_string() } else { format!("#{}", user_id4) }}
+                                            </span>
                                             {user_name}
+                                            <span class="opacity-50 text-sm">{user_comment}</span>
                                         </button>
                                     }
                                 }
@@ -652,7 +727,7 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
 
                         is_creating_player.set(true);
 
-                        create_id.set(create_uniq_id(&global_users()));
+                        create_id.set(create_uniq_id(&global_users(), &game_ctx.users.get()));
                     }>
                         <div class="flex gap-2 w-full">
                             <input
@@ -763,12 +838,13 @@ fn UserRow(user: Player, index: usize) -> impl IntoView {
     let users = game_ctx.users;
 
     let user_id = user.id.clone();
+    let user_is_guest = user.is_guest;
 
     view! {
         <div class="flex gap-2 items-baseline">
             <div class="text-sm w-7 flex items-center justify-center bg-gray-100 rounded-full px-2">{index + 1}</div>
             <div class="flex-1 flex items-center justify-start px-3 py-1 text-base bg-gray-200 rounded-full">
-                <span class="opacity-70 text-sm w-9 mr-1">#{user_id}</span>
+                <span class="opacity-70 text-sm w-9 mr-1">{move || if user_is_guest { "guest".to_string() } else { format!("#{}", user_id) }}</span>
                 {user.name.clone()}
                 <div class="flex-1"></div>
                 //down

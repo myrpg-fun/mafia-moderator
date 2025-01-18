@@ -3,13 +3,12 @@ use serde::Serialize;
 
 use crate::MafiaRole;
 use crate::WerewolfRole;
-use crate::MAFIA_ROLES;
-use crate::WEREWOLF_ROLES;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum Role {
     Mafia(MafiaRole),
     Werewolf(WerewolfRole),
+    WasKilled,
     None,
 }
 
