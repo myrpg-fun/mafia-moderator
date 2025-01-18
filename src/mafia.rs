@@ -539,7 +539,7 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
                         }else{
                             rust_create_new_game_log(calculate_user_logs_fn(), true);
                             
-                            //on_finish();
+                            on_finish();
                         }
                     }
                 }
