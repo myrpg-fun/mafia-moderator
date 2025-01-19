@@ -283,6 +283,8 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             "Prostitute"
         }else if user.role.contains(&Role::Mafia(MafiaRole::Doctor)) {
             "Doctor"
+        }else if user.role.contains(&Role::Mafia(MafiaRole::Priest)) {
+            "Priest"
         }else{
             "Citizen"
         }.to_string();
