@@ -274,18 +274,18 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
         };
 
         let role_index = if user.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
-            7
+            "Mafia"
         }else if user.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
-            8
+            "Maniac"
         }else if user.role.contains(&Role::Mafia(MafiaRole::Detective)) {
-            9
+            "Detective"
         }else if user.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
-            10
+            "Prostitute"
         }else if user.role.contains(&Role::Mafia(MafiaRole::Doctor)) {
-            11
+            "Doctor"
         }else{
-            6
-        };
+            "Citizen"
+        }.to_string();
 
         let role_score = if user.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
             if winner { 1 } else { 0 }

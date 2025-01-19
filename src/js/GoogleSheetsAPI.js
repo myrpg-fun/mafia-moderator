@@ -241,6 +241,30 @@ export async function createNewUser(id, name) {
   }
 }
 
+// role: "Mafia", "Detective", "Doctor", "Citizen", "Prostitute"
+function getRoleIndex(role) {
+  switch (role) {
+    case "Mafia":
+      return 7;
+    case "Maniac":
+      return 8;
+    case "Detective":
+      return 9;
+    case "Prostitute":
+      return 10;
+    case "Doctor":
+      return 11;
+    case "Citizen":
+      return 6;
+    case "Werewolf":
+      return 17;
+    case "Villager":
+      return 16;
+    default:
+      return 6;
+  }
+}
+
 // {name: "Игрок 1", id: "001", role: "Мафия", score: 0, winner: bool, rounds: ["", "", "", "", ""]}
 export async function createNewGameLog(users, isMafia) {
   await handleAuth();
@@ -725,14 +749,13 @@ export async function createNewGameLog(users, isMafia) {
 
       // update Nth column with new game winner
       try {
-        const roleGames = userSheet[user.role_index]
-          .replace("'", "")
-          .split("/");
+        const roleIndex = getRoleIndex(user.role_index);
+        const roleGames = userSheet[roleIndex].replace("'", "").split("/");
         roleGames[1] = roleGames[1] * 1 + 1;
         if (isNaN(roleGames[1])) roleGames[1] = 1;
         roleGames[0] = roleGames[0] * 1 + user.role_score;
         if (isNaN(roleGames[0])) roleGames[0] = user.role_score;
-        userSheet[user.role_index] = "'" + roleGames.join("/");
+        userSheet[roleIndex] = "'" + roleGames.join("/");
       } catch (err) {
         console.error(err);
       }
@@ -804,14 +827,13 @@ export async function createNewGameLog(users, isMafia) {
 
       // update Nth column with new game winner
       try {
-        const roleGames = userSheet[user.role_index]
-          .replace("'", "")
-          .split("/");
+        const roleIndex = getRoleIndex(user.role_index);
+        const roleGames = userSheet[roleIndex].replace("'", "").split("/");
         roleGames[1] = roleGames[1] * 1 + 1;
         if (isNaN(roleGames[1])) roleGames[1] = 1;
         roleGames[0] = roleGames[0] * 1 + user.role_score;
         if (isNaN(roleGames[0])) roleGames[0] = user.role_score;
-        userSheet[user.role_index] = "'" + roleGames.join("/");
+        userSheet[roleIndex] = "'" + roleGames.join("/");
       } catch (err) {
         console.error(err);
       }

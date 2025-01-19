@@ -24,7 +24,7 @@ pub struct UserLogs {
     score: u32,
     winner: bool,
     best_player: bool,
-    role_index: u32,
+    role_index: String,
     role_score: u32,
     rounds: Vec<String>,
 }
