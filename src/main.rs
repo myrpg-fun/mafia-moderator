@@ -839,13 +839,15 @@ fn UserRow(user: Player, index: usize) -> impl IntoView {
 
     let user_id = user.id.clone();
     let user_is_guest = user.is_guest;
+    let user_c1 = user.clone();
 
     view! {
         <div class="flex gap-2 items-baseline">
             <div class="text-sm w-7 flex items-center justify-center bg-gray-100 rounded-full px-2">{index + 1}</div>
-            <div class="flex-1 flex items-center justify-start px-3 py-1 text-base bg-gray-200 rounded-full">
-                <span class="opacity-70 text-sm w-9 mr-1">{move || if user_is_guest { "guest".to_string() } else { format!("#{}", user_id) }}</span>
-                {user.name.clone()}
+            <div class="flex-1 gap-1 flex items-baseline justify-start px-3 py-1 text-base bg-gray-200 rounded-full">
+                <span class="opacity-70 text-sm w-9">{move || if user_is_guest { "guest".to_string() } else { format!("#{}", user_id) }}</span>
+                {user.name}
+                <span class="opacity-50 text-sm">{user.comment}</span>
                 <div class="flex-1"></div>
                 //down
                 <button
@@ -876,7 +878,7 @@ fn UserRow(user: Player, index: usize) -> impl IntoView {
             </div>
             <button class="text-lg"
                 on:click=move |_| {
-                    users.update(|users| users.retain(|u| *u != user));
+                    users.update(|users| users.retain(|u| *u != user_c1));
                 }
             >
                 "✕"
