@@ -667,7 +667,7 @@ fn SelectPlayersForGame(on_close: impl Fn() -> () + Clone + 'static) -> impl Int
                                     });
                                 }
                             >
-                                "Убрать выбор всех игроков"
+                                "Очистить выбор всех игроков"
                             </button>
                             <For
                                 each=filtered_users
