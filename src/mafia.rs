@@ -229,7 +229,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
 
     for user in users.iter() {
         let mut rounds = Vec::<String>::new();
-        rounds.resize(last_round + 2, "".to_string());
+        rounds.resize(last_round + 1, "".to_string());
 
         let current_user_history = user_history.get(&user.id).expect("user_history not found");
 
@@ -251,7 +251,8 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             
             // set role icons to rounds[index]
             // index might be empty, we should create "" for it
-            rounds[*index] = role;
+            let index = if *index <= 0 { 0 } else { *index - 1 };
+            rounds[index] = role;
         }
 
         let winner = 

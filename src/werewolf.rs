@@ -540,7 +540,7 @@ fn calculate_user_logs(
 
     for user in users.iter() {
         let mut rounds = Vec::<String>::new();
-        rounds.resize(last_round + 2, "".to_string());
+        rounds.resize(last_round + 1, "".to_string());
 
         let current_user_history = user_history.get(&user.id).expect("user_history not found");
 
@@ -569,7 +569,8 @@ fn calculate_user_logs(
 
             // set role icons to rounds[index]
             // index might be empty, we should create "" for it
-            rounds[*index] = role;
+            let index = if *index <= 0 { 0 } else { *index - 1 };
+            rounds[index] = role;
         }
 
         let winner = (selected_winners.contains(&Role::Werewolf(WerewolfRole::Werewolf))
@@ -1443,6 +1444,36 @@ fn SelectUsersForVote(
     }
 }
 
+fn day_kill_user(user: &mut Player, round: usize) {
+    if !user.is_alive {
+        return;
+    }
+
+    if user
+        .additional_role
+        .contains(&Role::Werewolf(WerewolfRole::Vampire))
+    {
+        user.choosed_by
+            .insert(Role::Werewolf(WerewolfRole::Vampire));
+    } else {
+        user.choosed_by
+            .insert(Role::Werewolf(WerewolfRole::Villager));
+    }
+    user.was_killed = true;
+
+    if user
+        .additional_role
+        .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
+    {
+        user.additional_role
+            .remove(&Role::Werewolf(WerewolfRole::ToughGuy));
+        return;
+    }
+
+    user.choosed_by.insert(Role::WasKilled);
+    user.is_alive = false;
+}
+
 #[component]
 fn DayVote() -> impl IntoView {
     let clock_choose = create_rw_signal(true);
@@ -1466,31 +1497,9 @@ fn DayVote() -> impl IntoView {
             clear_choosed_by(users, round);
             clear_was_killed(users);
 
-            fn kill_user(user: &mut Player, round: usize) {
-                if !user.is_alive {
-                    return;
-                }
-
-                user.choosed_by
-                    .insert(Role::Werewolf(WerewolfRole::Villager));
-                user.was_killed = true;
-
-                if user
-                    .additional_role
-                    .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
-                {
-                    user.additional_role
-                        .remove(&Role::Werewolf(WerewolfRole::ToughGuy));
-                    return;
-                }
-
-                user.choosed_by.insert(Role::WasKilled);
-                user.is_alive = false;
-            }
-
             users.iter_mut().for_each(|u| {
                 if selected_users.contains(&u.id) {
-                    kill_user(u, round);
+                    day_kill_user(u, round);
                 }
             });
 
@@ -1522,30 +1531,9 @@ fn DayVote() -> impl IntoView {
         let round = game_ctx.round.get();
 
         game_ctx.users.update(|users| {
-            fn kill_user(user: &mut Player, round: usize) {
-                if !user.is_alive {
-                    return;
-                }
-
-                if user
-                    .additional_role
-                    .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
-                {
-                    user.additional_role
-                        .remove(&Role::Werewolf(WerewolfRole::ToughGuy));
-                    user.was_killed = true;
-                    return;
-                }
-
-                user.choosed_by
-                    .insert(Role::Werewolf(WerewolfRole::Villager));
-                user.is_alive = false;
-                user.was_killed = true;
-            }
-
             users.iter_mut().for_each(|u| {
                 if selected_users.contains(&u.id) {
-                    kill_user(u, round);
+                    day_kill_user(u, round);
                 }
             });
 
@@ -2069,6 +2057,7 @@ fn calculate_night_kills(users: &mut [Player]) {
             }
         }
 
+        user.choosed_by.insert(Role::WasKilled);
         user.is_alive = false;
         user.was_killed = true;
     }
@@ -2232,7 +2221,7 @@ fn initialize_user_roles(users: &mut [Player]) {
 }
 
 fn calculate_after_kills(users: &mut [Player]) {
-    let mut kill_indices: Vec<usize> = Vec::new();
+    let mut kill_indices: Vec<(usize, Role)> = Vec::new();
 
     for user in users.iter() {
         if user.is_alive {
@@ -2242,7 +2231,7 @@ fn calculate_after_kills(users: &mut [Player]) {
         if user.role.contains(&Role::Werewolf(WerewolfRole::Lovers)) {
             users.iter().enumerate().for_each(|(index, u)| {
                 if u.role.contains(&Role::Werewolf(WerewolfRole::Lovers)) {
-                    kill_indices.push(index);
+                    kill_indices.push((index, Role::Werewolf(WerewolfRole::Lovers)));
                 }
             });
         }
@@ -2257,19 +2246,20 @@ fn calculate_after_kills(users: &mut [Player]) {
                     .contains(&Role::Werewolf(WerewolfRole::DireWolf))
                     && u.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 {
-                    kill_indices.push(index);
+                    kill_indices.push((index, Role::Werewolf(WerewolfRole::DireWolf)));
                 }
             });
         }
     }
 
     // Set is_alive to false for all Lovers
-    for index in kill_indices {
+    for (index, role) in kill_indices {
         if let Some(u) = users.get_mut(index) {
             if u.is_alive {
                 u.is_alive = false;
                 u.was_killed = true;
-                u.choosed_by.insert(Role::Werewolf(WerewolfRole::Villager));
+                u.choosed_by.insert(Role::WasKilled);
+                u.choosed_by.insert(role);
             }
         }
     }
