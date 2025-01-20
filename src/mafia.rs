@@ -289,9 +289,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             "Citizen"
         }.to_string();
 
-        let role_score = if user.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
-            if winner { 1 } else { 0 }
-        }else if user.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
+        let role_score = if user.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
             let mut score = 0;
 
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Mafia))) {
@@ -304,7 +302,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             }
 
             if winner {
-                score += 2;
+                score += 1;
             }
 
             score
@@ -320,6 +318,27 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
                 });
             }
 
+            if winner {
+                score += 1;
+            }
+
+            score
+        }else if user.role.contains(&Role::Mafia(MafiaRole::Priest)) {
+            let mut score = 0;
+
+            for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Maniac))) {
+                let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
+                current_user_history.iter().for_each(|(_, roles)| {
+                    if roles.contains(&Role::Mafia(MafiaRole::Priest)) {
+                        score += 1;
+                    }
+                });
+            }
+
+            if winner {
+                score += 1;
+            }
+
             score
         }else if user.role.contains(&Role::Mafia(MafiaRole::Doctor)) {
             let mut score = 0;
@@ -331,6 +350,10 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
                         score += 1;
                     }
                 });
+            }
+
+            if winner {
+                score += 1;
             }
 
             score
@@ -377,6 +400,10 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
                         });
                     }
                 });
+            }
+
+            if winner {
+                score += 1;
             }
 
             score

@@ -153,7 +153,7 @@ export async function loadAllUsers() {
     // Fetch all files
     response = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: "Игроки!A2:S",
+      range: calculateUsersTableRange(),
     });
   } catch (err) {
     console.error(err);
@@ -166,42 +166,221 @@ export async function loadAllUsers() {
     return [];
   }
 
-  const values = range.values.filter((user) => user.length === 19);
+  const values = range.values.filter((user) => user.length === 22);
 
   return values;
 }
 
+const cells = {
+  ID: {
+    col: 0,
+    name: "A",
+    title: "№",
+  },
+  Name: {
+    col: 1,
+    name: "B",
+    title: "Имя игрока",
+  },
+  Score: {
+    col: 2,
+    name: "C",
+    title: "Сумма баллов",
+  },
+  MafiaScore: {
+    col: 3,
+    name: "D",
+    title: "Баллы Мафии",
+  },
+  MafiaGames: {
+    col: 4,
+    name: "E",
+    mult: "$B$2",
+    title: "Игр",
+  },
+  MafiaWins: {
+    col: 5,
+    name: "F",
+    mult: "$B$3",
+    title: "🏆",
+  },
+  Citizen: {
+    col: 6,
+    name: "G",
+    mult: "$B$4",
+    title: "🙂",
+  },
+  Mafia: {
+    col: 7,
+    name: "H",
+    mult: "$B$5",
+    title: "🔫",
+  },
+  Maniac: {
+    col: 8,
+    name: "I",
+    mult: "$B$6",
+    title: "🔪",
+  },
+  Detective: {
+    col: 9,
+    name: "J",
+    mult: "$B$7",
+    title: "🕵️‍♂️",
+  },
+  Prostitute: {
+    col: 10,
+    name: "K",
+    mult: "$B$8",
+    title: "💋",
+  },
+  Doctor: {
+    col: 11,
+    name: "L",
+    mult: "$B$9",
+    title: "🚑",
+  },
+  Priest: {
+    col: 12,
+    name: "M",
+    mult: "$B$10",
+    title: "🙏",
+  },
+  MafiaStars: {
+    col: 13,
+    name: "N",
+    mult: "$B$11",
+    title: "⭐",
+  },
+  WerewolfScore: {
+    col: 14,
+    name: "O",
+    title: "Баллы WW",
+  },
+  WerewolfGames: {
+    col: 15,
+    name: "P",
+    mult: "$B$2",
+    title: "Игр",
+  },
+  WerewolfWins: {
+    col: 16,
+    name: "Q",
+    mult: "$B$3",
+    title: "🏆",
+  },
+  Villager: {
+    col: 17,
+    name: "R",
+    mult: "$B$12",
+    title: "🧑‍🌾",
+  },
+  Werewolf: {
+    col: 18,
+    name: "S",
+    mult: "$B$13",
+    title: "🐺",
+  },
+  Vampire: {
+    col: 19,
+    name: "T",
+    mult: "$B$14",
+    title: "🧛",
+  },
+  Tanner: {
+    col: 20,
+    name: "U",
+    mult: "$B$15",
+    title: "🧵",
+  },
+  WerewolfStars: {
+    col: 21,
+    name: "V",
+    mult: "$B$11",
+    title: "⭐",
+  },
+};
+
+function calculateUsersTableRange() {
+  return `Игроки!A2:${cells.WerewolfStars.name}`;
+}
+
+function createTitleRow() {
+  const result = [];
+
+  for (const key in cells) {
+    const cell = cells[key];
+    result[cell.col] = cell.title;
+  }
+
+  return result;
+}
+
+function createMafiaScoreFormula(row) {
+  return `='Бальная система'!${cells.MafiaGames.mult}*${cells.MafiaGames.name}${row}+
+      'Бальная система'!${cells.MafiaWins.mult}*${cells.MafiaWins.name}${row}+
+      'Бальная система'!${cells.MafiaStars.mult}*${cells.MafiaStars.name}${row}+
+      'Бальная система'!${cells.Citizen.mult}*VALUE(LEFT(${cells.Citizen.name}${row}, FIND("/", ${cells.Citizen.name}${row}) - 1))+
+      'Бальная система'!${cells.Priest.mult}*VALUE(LEFT(${cells.Priest.name}${row}, FIND("/", ${cells.Priest.name}${row}) - 1))+
+      'Бальная система'!${cells.Doctor.mult}*VALUE(LEFT(${cells.Doctor.name}${row}, FIND("/", ${cells.Doctor.name}${row}) - 1))+
+      'Бальная система'!${cells.Detective.mult}*VALUE(LEFT(${cells.Detective.name}${row}, FIND("/", ${cells.Detective.name}${row}) - 1))+
+      'Бальная система'!${cells.Prostitute.mult}*VALUE(LEFT(${cells.Prostitute.name}${row}, FIND("/", ${cells.Prostitute.name}${row}) - 1))+
+      'Бальная система'!${cells.Maniac.mult}*VALUE(LEFT(${cells.Maniac.name}${row}, FIND("/", ${cells.Maniac.name}${row}) - 1))+
+      'Бальная система'!${cells.Mafia.mult}*VALUE(LEFT(${cells.Mafia.name}${row}, FIND("/", ${cells.Mafia.name}${row}) - 1))`;
+}
+
+function createWerewolfScoreFormula(row) {
+  return `='Бальная система'!${cells.WerewolfGames.mult}*${cells.WerewolfGames.name}${row}+
+      'Бальная система'!${cells.WerewolfWins.mult}*${cells.WerewolfWins.name}${row}+
+      'Бальная система'!${cells.WerewolfStars.mult}*${cells.WerewolfStars.name}${row}+
+      'Бальная система'!${cells.Villager.mult}*VALUE(LEFT(${cells.Villager.name}${row}, FIND("/", ${cells.Villager.name}${row}) - 1))+
+      'Бальная система'!${cells.Werewolf.mult}*VALUE(LEFT(${cells.Werewolf.name}${row}, FIND("/", ${cells.Werewolf.name}${row}) - 1))+
+      'Бальная система'!${cells.Vampire.mult}*VALUE(LEFT(${cells.Vampire.name}${row}, FIND("/", ${cells.Vampire.name}${row}) - 1))+
+      'Бальная система'!${cells.Tanner.mult}*VALUE(LEFT(${cells.Tanner.name}${row}, FIND("/", ${cells.Tanner.name}${row}) - 1))`;
+}
+
 function createNewUserRow(id, name, row) {
-  return [
-    `'${id}`,
-    String(name),
-    `=D${row}+N${row}`,
-    `='Бальная система'!$B$2*E${row}+'Бальная система'!$B$3*F${row}+'Бальная система'!$B$10*M${row}+'Бальная система'!$B$9*VALUE(LEFT(L${row}, FIND("/", L${row}) - 1))+'Бальная система'!$B$8*VALUE(LEFT(K${row}, FIND("/", K${row}) - 1))+'Бальная система'!$B$7*VALUE(LEFT(J${row}, FIND("/", J${row}) - 1))+'Бальная система'!$B$6*VALUE(LEFT(I${row}, FIND("/", I${row}) - 1))+'Бальная система'!$B$5*VALUE(LEFT(G${row}, FIND("/", G${row}) - 1))+'Бальная система'!$B$4*VALUE(LEFT(H${row}, FIND("/", H${row}) - 1))`,
-    0,
-    0,
-    `'0/0`,
-    `'0/0`,
-    `'0/0`,
-    `'0/0`,
-    `'0/0`,
-    `'0/0`,
-    0,
-    `='Бальная система'!$B$2*O${row}+'Бальная система'!$B$3*P${row}+'Бальная система'!$B$10*S${row}+'Бальная система'!$B$5*VALUE(LEFT(Q${row}, FIND("/", Q${row}) - 1))+'Бальная система'!$B$4*VALUE(LEFT(R${row}, FIND("/", R${row}) - 1))`,
-    0,
-    0,
-    `'0/0`,
-    `'0/0`,
-    0,
-  ];
+  const result = [];
+
+  result[cells.ID.col] = `'${id}`;
+  result[cells.Name.col] = String(name);
+  result[
+    cells.Score.col
+  ] = `=${cells.MafiaScore.name}${row}+${cells.WerewolfScore.name}${row}`;
+  result[cells.MafiaScore.col] = createMafiaScoreFormula(row);
+  result[cells.MafiaGames.col] = 0;
+  result[cells.MafiaWins.col] = 0;
+  result[cells.Citizen.col] = `'0/0`;
+  result[cells.Mafia.col] = `'0/0`;
+  result[cells.Maniac.col] = `'0/0`;
+  result[cells.Detective.col] = `'0/0`;
+  result[cells.Prostitute.col] = `'0/0`;
+  result[cells.Doctor.col] = `'0/0`;
+  result[cells.Priest.col] = `'0/0`;
+  result[cells.MafiaStars.col] = 0;
+  result[cells.WerewolfScore.col] = createWerewolfScoreFormula(row);
+  result[cells.WerewolfGames.col] = 0;
+  result[cells.WerewolfWins.col] = 0;
+  result[cells.Villager.col] = `'0/0`;
+  result[cells.Werewolf.col] = `'0/0`;
+  result[cells.Vampire.col] = `'0/0`;
+  result[cells.Tanner.col] = `'0/0`;
+  result[cells.WerewolfStars.col] = 0;
+
+  return result;
 }
 
 function refreshShreetUserRow(userArray, row) {
-  if (userArray.length !== 19) return;
+  console.log(userArray.length);
+  if (userArray.length !== 22) return;
 
-  userArray[0] = `'${userArray[0].replace("'", "")}`;
-  userArray[2] = `=D${row}+N${row}`;
-  (userArray[3] = `='Бальная система'!$B$2*E${row}+'Бальная система'!$B$3*F${row}+'Бальная система'!$B$10*M${row}+'Бальная система'!$B$9*VALUE(LEFT(L${row}, FIND("/", L${row}) - 1))+'Бальная система'!$B$8*VALUE(LEFT(K${row}, FIND("/", K${row}) - 1))+'Бальная система'!$B$7*VALUE(LEFT(J${row}, FIND("/", J${row}) - 1))+'Бальная система'!$B$6*VALUE(LEFT(I${row}, FIND("/", I${row}) - 1))+'Бальная система'!$B$5*VALUE(LEFT(G${row}, FIND("/", G${row}) - 1))+'Бальная система'!$B$4*VALUE(LEFT(H${row}, FIND("/", H${row}) - 1))`),
-    (userArray[13] = `='Бальная система'!$B$2*O${row}+'Бальная система'!$B$3*P${row}+'Бальная система'!$B$10*S${row}+'Бальная система'!$B$5*VALUE(LEFT(Q${row}, FIND("/", Q${row}) - 1))+'Бальная система'!$B$4*VALUE(LEFT(R${row}, FIND("/", R${row}) - 1))`);
+  userArray[cells.ID.col] = `'${userArray[cells.ID.col].replace("'", "")}`;
+  userArray[
+    cells.Score.col
+  ] = `=${cells.MafiaScore.name}${row}+${cells.WerewolfScore.name}${row}`;
+  userArray[cells.MafiaScore.col] = createMafiaScoreFormula(row);
+  userArray[cells.WerewolfScore.col] = createWerewolfScoreFormula(row);
+
   return userArray;
 }
 
@@ -239,6 +418,37 @@ export async function createNewUser(id, name) {
   } catch (err) {
     console.error("Error adding new user:", err);
   }
+}
+
+// role: "Mafia", "Detective", "Doctor", "Citizen", "Prostitute"
+function getRoleIndex(role) {
+  switch (role) {
+    case "Mafia":
+      return cells.Mafia.col;
+    case "Maniac":
+      return cells.Maniac.col;
+    case "Detective":
+      return cells.Detective.col;
+    case "Prostitute":
+      return cells.Prostitute.col;
+    case "Doctor":
+      return cells.Doctor.col;
+    case "Priest":
+      return cells.Priest.col;
+    case "Citizen":
+      return cells.Citizen.col;
+    case "Villager":
+      return cells.Villager.col;
+    case "Werewolf":
+      return cells.Werewolf.col;
+    case "Vampire":
+      return cells.Vampire.col;
+    case "Tanner":
+      return cells.Tanner.col;
+  }
+
+  console.error("Unknown role:", role);
+  return cells.Villager.col;
 }
 
 // {name: "Игрок 1", id: "001", role: "Мафия", score: 0, winner: bool, rounds: ["", "", "", "", ""]}
@@ -373,8 +583,8 @@ export async function createNewGameLog(users, isMafia) {
                 range: {
                   sheetId: daySheetId,
                   dimension: "COLUMNS",
-                  startIndex: 4,
-                  endIndex: 13,
+                  startIndex: cells.MafiaGames.col,
+                  endIndex: cells.MafiaStars.col + 1,
                 },
                 properties: {
                   pixelSize: 30,
@@ -387,8 +597,8 @@ export async function createNewGameLog(users, isMafia) {
                 range: {
                   sheetId: daySheetId,
                   dimension: "COLUMNS",
-                  startIndex: 14,
-                  endIndex: 19,
+                  startIndex: cells.WerewolfGames.col,
+                  endIndex: cells.WerewolfStars.col + 1,
                 },
                 properties: {
                   pixelSize: 30,
@@ -402,8 +612,8 @@ export async function createNewGameLog(users, isMafia) {
                   sheetId: daySheetId,
                   startRowIndex: 1,
                   endRowIndex: 100,
-                  startColumnIndex: 4,
-                  endColumnIndex: 13,
+                  startColumnIndex: cells.MafiaGames.col,
+                  endColumnIndex: cells.MafiaStars.col + 1,
                 },
                 cell: {
                   userEnteredFormat: {
@@ -419,8 +629,8 @@ export async function createNewGameLog(users, isMafia) {
                   sheetId: daySheetId,
                   startRowIndex: 1,
                   endRowIndex: 100,
-                  startColumnIndex: 14,
-                  endColumnIndex: 19,
+                  startColumnIndex: cells.WerewolfGames.col,
+                  endColumnIndex: cells.WerewolfStars.col + 1,
                 },
                 cell: {
                   userEnteredFormat: {
@@ -451,33 +661,11 @@ export async function createNewGameLog(users, isMafia) {
         },
       });
 
-      const values = [
-        [
-          "№",
-          "Имя игрока",
-          "Сумма баллов",
-          "Баллы Мафии",
-          "Игр",
-          "🏆",
-          "🙂",
-          "🔫",
-          "🔪",
-          "🕵️‍♂️",
-          "💋",
-          "🚑",
-          "⭐",
-          "Баллы WW",
-          "Игр",
-          "🏆",
-          "🧑‍🌾",
-          "🐺",
-          "⭐",
-        ],
-      ];
+      const values = [createTitleRow()];
 
       const response9 = await gapi.client.sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${daySheetTitle}!A1:S`,
+        range: `${daySheetTitle}!A1:${cells.WerewolfStars.name}`,
         valueInputOption: "USER_ENTERED",
         resource: {
           values,
@@ -693,9 +881,15 @@ export async function createNewGameLog(users, isMafia) {
         daySheetValues.push(userSheet);
       }
 
-      const indexGamesCount = isMafia ? 4 : 14;
-      const indexGamesWinner = isMafia ? 5 : 15;
-      const indexGamesBestPlayer = isMafia ? 12 : 18;
+      const indexGamesCount = isMafia
+        ? cells.MafiaGames.col
+        : cells.WerewolfGames.col;
+      const indexGamesWinner = isMafia
+        ? cells.MafiaWins.col
+        : cells.WerewolfWins.col;
+      const indexGamesBestPlayer = isMafia
+        ? cells.MafiaStars.col
+        : cells.WerewolfStars.col;
 
       try {
         // update 4th column with new game count
@@ -725,14 +919,13 @@ export async function createNewGameLog(users, isMafia) {
 
       // update Nth column with new game winner
       try {
-        const roleGames = userSheet[user.role_index]
-          .replace("'", "")
-          .split("/");
+        const roleIndex = getRoleIndex(user.role_index);
+        const roleGames = userSheet[roleIndex].replace("'", "").split("/");
         roleGames[1] = roleGames[1] * 1 + 1;
         if (isNaN(roleGames[1])) roleGames[1] = 1;
         roleGames[0] = roleGames[0] * 1 + user.role_score;
         if (isNaN(roleGames[0])) roleGames[0] = user.role_score;
-        userSheet[user.role_index] = "'" + roleGames.join("/");
+        userSheet[roleIndex] = "'" + roleGames.join("/");
       } catch (err) {
         console.error(err);
       }
@@ -746,7 +939,7 @@ export async function createNewGameLog(users, isMafia) {
     // Update day sheet with new user scores
     const response61 = await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${daySheetTitle}!A2:S`,
+      range: `${daySheetTitle}!A2:${cells.WerewolfStars.name}`,
       valueInputOption: "USER_ENTERED", // Values are not parsed, they are input as they are
       resource: {
         values: daySheetValues,
@@ -756,7 +949,7 @@ export async function createNewGameLog(users, isMafia) {
     // Fetch all users
     const response51 = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: "Игроки!A2:S",
+      range: calculateUsersTableRange(),
       valueRenderOption: "FORMULA",
     });
 
@@ -772,9 +965,15 @@ export async function createNewGameLog(users, isMafia) {
       const user = users.find((user) => user.id === userId);
       if (!user) continue;
 
-      const indexGamesCount = isMafia ? 4 : 14;
-      const indexGamesWinner = isMafia ? 5 : 15;
-      const indexGamesBestPlayer = isMafia ? 12 : 18;
+      const indexGamesCount = isMafia
+        ? cells.MafiaGames.col
+        : cells.WerewolfGames.col;
+      const indexGamesWinner = isMafia
+        ? cells.MafiaWins.col
+        : cells.WerewolfWins.col;
+      const indexGamesBestPlayer = isMafia
+        ? cells.MafiaStars.col
+        : cells.WerewolfStars.col;
 
       try {
         // update 4th column with new game count
@@ -804,14 +1003,13 @@ export async function createNewGameLog(users, isMafia) {
 
       // update Nth column with new game winner
       try {
-        const roleGames = userSheet[user.role_index]
-          .replace("'", "")
-          .split("/");
+        const roleIndex = getRoleIndex(user.role_index);
+        const roleGames = userSheet[roleIndex].replace("'", "").split("/");
         roleGames[1] = roleGames[1] * 1 + 1;
         if (isNaN(roleGames[1])) roleGames[1] = 1;
         roleGames[0] = roleGames[0] * 1 + user.role_score;
         if (isNaN(roleGames[0])) roleGames[0] = user.role_score;
-        userSheet[user.role_index] = "'" + roleGames.join("/");
+        userSheet[roleIndex] = "'" + roleGames.join("/");
       } catch (err) {
         console.error(err);
       }
@@ -819,7 +1017,7 @@ export async function createNewGameLog(users, isMafia) {
 
     const response6 = await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: "Игроки!A2:S",
+      range: calculateUsersTableRange(),
       valueInputOption: "USER_ENTERED", // Values are not parsed, they are input as they are
       resource: {
         values: userValues,

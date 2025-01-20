@@ -1632,7 +1632,9 @@ fn DayVote() -> impl IntoView {
             .cloned()
             .collect::<Vec<_>>();
 
-        log.push(WerewolfHint::Vampire(v_users));
+        if !v_users.is_empty() {
+            log.push(WerewolfHint::Vampire(v_users));
+        }
 
         log
     });
@@ -2421,7 +2423,9 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
                 .cloned()
                 .collect::<Vec<_>>();
 
-            log.push(WerewolfHint::Seer(ww_users));
+            if !ww_users.is_empty() {
+                log.push(WerewolfHint::Seer(ww_users));
+            }
         }
 
         log
