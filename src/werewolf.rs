@@ -59,12 +59,13 @@ pub enum WerewolfRole {
     Vampire,
 }
 
-const _WEREWOLF_COLORS: [&str; 12] = [
+const _WEREWOLF_COLORS: [&str; 13] = [
     "text-red-950",
     "text-blue-950",
     "text-gray-950",
     "text-green-950",
     "text-purple-950",
+    "bg-rose-950/50",
     "bg-red-950/50",
     "bg-blue-950/50",
     "bg-gray-950/50",
@@ -584,7 +585,9 @@ fn calculate_user_logs(
                 && !user.role.contains(&Role::Werewolf(WerewolfRole::Tanner))
                 && !user.role.contains(&Role::Werewolf(WerewolfRole::Minion)))
             || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Tanner))
-                && user.role.contains(&Role::Werewolf(WerewolfRole::Tanner)));
+                && user.role.contains(&Role::Werewolf(WerewolfRole::Tanner)))
+            || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Mason))
+                && user.role.contains(&Role::Werewolf(WerewolfRole::Mason)));
 
         let score = 0;
 
@@ -652,6 +655,12 @@ fn SelectWinners(
             role_name: "Таннер",
             role_name_color: "gray-950",
             role_icon: "🧵",
+        }),
+        RoleInfo::Icon(IconRoleInfo {
+            role: Role::Werewolf(WerewolfRole::Mason),
+            role_name: "Масоны (Любовники)",
+            role_name_color: "blue-950",
+            role_icon: "❤️",
         }),
         RoleInfo::Icon(IconRoleInfo {
             role: Role::Werewolf(WerewolfRole::Vampire),
@@ -736,7 +745,8 @@ fn SelectWinners(
             >
                 "Не сохранять результаты"
             </button>
-            <div class="flex flex-row gap-1 justify-stretch w-full">
+            <div class="grid grid-cols-3 gap-1 justify-stretch w-full">
+            <div></div>
             {roles.map(|role| {
                 let role_clone = role.get_role().clone();
                 view!{
@@ -2112,14 +2122,8 @@ fn calculate_night_kills(users: &mut [Player]) {
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::Werewolf))
         {
-            if !is_user_protected(
-                user,
-                &[
-                    Role::Werewolf(WerewolfRole::Bodyguard),
-                    Role::Werewolf(WerewolfRole::WitchHeal),
-                ],
-            ) {
-                if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed)) {
+            if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed)) {
+                if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
                     // Priest check
                     if user
                         .additional_role
@@ -2130,7 +2134,15 @@ fn calculate_night_kills(users: &mut [Player]) {
                     } else {
                         user.role.insert(Role::Werewolf(WerewolfRole::Werewolf));
                     }
-                } else {
+                }
+            } else {
+                if !is_user_protected(
+                    user,
+                    &[
+                        Role::Werewolf(WerewolfRole::Bodyguard),
+                        Role::Werewolf(WerewolfRole::WitchHeal),
+                    ],
+                ) {
                     kill_user(
                         user,
                         &[
@@ -2147,7 +2159,7 @@ fn calculate_night_kills(users: &mut [Player]) {
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::WitchPoison))
         {
-            if !is_user_protected(user, &[]) {
+            if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
                 kill_user(
                     user,
                     &[
@@ -2163,7 +2175,13 @@ fn calculate_night_kills(users: &mut [Player]) {
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::Huntress))
         {
-            if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+            if !is_user_protected(
+                user,
+                &[
+                    Role::Werewolf(WerewolfRole::Bodyguard),
+                    Role::Werewolf(WerewolfRole::WitchHeal),
+                ],
+            ) {
                 kill_user(
                     user,
                     &[
@@ -2182,7 +2200,13 @@ fn calculate_night_kills(users: &mut [Player]) {
             if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 || user.role.contains(&Role::Werewolf(WerewolfRole::Vampire))
             {
-                if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+                if !is_user_protected(
+                    user,
+                    &[
+                        Role::Werewolf(WerewolfRole::Bodyguard),
+                        Role::Werewolf(WerewolfRole::WitchHeal),
+                    ],
+                ) {
                     kill_user(
                         user,
                         &[
