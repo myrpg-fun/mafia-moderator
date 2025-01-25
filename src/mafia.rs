@@ -8,8 +8,12 @@ use leptos::*;
 use serde::Deserialize;
 use serde::Serialize;
 use crate::rust_create_new_game_log;
-use crate::user::*;
 use crate::roles::*;
+use role_info::RoleInfo;
+use role::Role;
+use role_info::*;
+use target_flag::*;
+use crate::user::user::Player;
 use crate::GameContextHistory;
 use crate::GameState;
 use crate::GameContext;
@@ -32,84 +36,72 @@ const _MAFIA_COLORS: [&str; 10] = [
     "bg-red-950", "bg-blue-950", "bg-gray-950", "bg-green-950", "bg-purple-950",
 ];
 
-pub const MAFIA_ROLES: [RoleInfo; 8] = [
-    RoleInfo::Icon(IconRoleInfo{
-        role: Role::WasKilled,
-        role_name: "Killed",
-        role_name_color: "red-950",
-        role_icon: "❌",
-    }),
-    RoleInfo::Icon(IconRoleInfo{
-        role: Role::Mafia(MafiaRole::Citizen),
-        role_name: "Мирные",
-        role_name_color: "blue-950",
-        role_icon: "✋",
-    }),
+pub const MAFIA_ROLES: [RoleInfo; 6] = [
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Mafia),
         check_role: None,
         role_name: "Мафия",
         role_name_color: "red-950",
-        role_icon: "🔫",
         prepare_description: "Выберите игроков Мафии",
         night_description: "Кого убьет Мафия?",
         targeting_rules: NightTargetingRules::Anyone,
+        target_flag: TargetFlag::Mafia(MafiaTargetFlag::Mafia),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Detective),
         check_role: None,
         role_name: "Детектив",
         role_name_color: "blue-950",
-        role_icon: "🔍",
         prepare_description: "Выберите игрока Детектива",
         night_description: "Кого проверит Детектив?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Mafia(MafiaTargetFlag::Detective),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Maniac),
         check_role: None,
         role_name: "Маньяк",
         role_name_color: "gray-950",
-        role_icon: "🔪",
         prepare_description: "Выберите игрока Маньяка",
         night_description: "Кого убьет Маньяк?",
         targeting_rules: NightTargetingRules::Anyone,
+        target_flag: TargetFlag::Mafia(MafiaTargetFlag::Maniac),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Doctor),
         check_role: None,
         role_name: "Доктор",
         role_name_color: "green-950",
-        role_icon: "🚑",
         prepare_description: "Выберите игрока Доктора",
         night_description: "Кого спасет Доктор?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Mafia(MafiaTargetFlag::Doctor),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Prostitute),
         check_role: None,
         role_name: "Проститутка",
         role_name_color: "green-950",
-        role_icon: "💋",
         prepare_description: "Выберите игрока Проститутку",
         night_description: "К кому зайдет Проститутка?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Mafia(MafiaTargetFlag::Prostitute),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Mafia(MafiaRole::Priest),
         check_role: None,
         role_name: "Священник",
         role_name_color: "blue-950",
-        role_icon: "🙏",
         prepare_description: "Выберите игрока Священника",
         night_description: "Кого проверит Священник?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Mafia(MafiaTargetFlag::Priest),
     }),
 ];
 
 #[derive(Clone, Debug, PartialEq)]
 enum MafiaHint {
-    Killed(Player, HashSet<Role>),
+    Killed(Player, HashSet<TargetFlag>),
     Prostitute(Player),
     Detective(Vec<Player>),
     Priest(Vec<Player>),
@@ -219,7 +211,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
         }
     }
 
-    let mut user_history = HashMap::<String, Vec::<(usize, HashSet<Role>)>>::new();
+    let mut user_history = HashMap::<String, Vec::<(usize, HashSet<TargetFlag>)>>::new();
     for user in users.iter() {
         let mut rounds = user.history_by.clone();
         rounds.push((last_round + 1, user.choosed_by.clone()));
@@ -237,16 +229,16 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             let role = roles.iter()
                 //sort WasKilled role
                 .sorted_by(|a, b| {
-                    if **a == Role::WasKilled {
+                    if **a == TargetFlag::WasKilled {
                         std::cmp::Ordering::Greater
-                    } else if **b == Role::WasKilled {
+                    } else if **b == TargetFlag::WasKilled {
                         std::cmp::Ordering::Less
                     } else {
                         std::cmp::Ordering::Equal
                     }
                 })
-                .map(|role| {
-                    MAFIA_ROLES.iter().find(|r| r.get_role() == *role).unwrap().get_role_icon()
+                .map(|flag| {
+                    flag.get_icon()
                 }).collect::<Vec<_>>().join(" ");
             
             // set role icons to rounds[index]
@@ -296,7 +288,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Mafia))) {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(_, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Maniac)) && !roles.contains(&Role::Mafia(MafiaRole::Doctor)) && !roles.contains(&Role::Mafia(MafiaRole::Prostitute)) {
+                    if roles.contains(&&TargetFlag::Mafia(MafiaTargetFlag::Maniac)) && !roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Doctor)) && !roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute)) {
                         score += 1;
                     }
                 });
@@ -313,7 +305,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Mafia))) {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(_, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Detective)) {
+                    if roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Detective)) {
                         score += 1;
                     }
                 });
@@ -330,7 +322,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Maniac))) {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(_, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Priest)) {
+                    if roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Priest)) {
                         score += 1;
                     }
                 });
@@ -347,7 +339,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter() {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(_, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Doctor)) && (roles.contains(&Role::Mafia(MafiaRole::Mafia)) || roles.contains(&Role::Mafia(MafiaRole::Maniac))) {
+                    if roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Doctor)) && (roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Mafia)) || roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Maniac))) {
                         score += 1;
                     }
                 });
@@ -364,7 +356,7 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter() {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(_, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Prostitute)) && (roles.contains(&Role::Mafia(MafiaRole::Mafia)) || roles.contains(&Role::Mafia(MafiaRole::Maniac))) {
+                    if roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute)) && (roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Mafia)) || roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Maniac))) {
                         score += 1;
                     }
                 });
@@ -374,12 +366,12 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Mafia))) {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(mafia_round, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Prostitute)) {
+                    if roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute)) {
                         p_user_history.iter().for_each(|(prostitute_round, roles)| {
                             if mafia_round == prostitute_round && 
-                            (roles.contains(&Role::Mafia(MafiaRole::Mafia)) || 
-                            roles.contains(&Role::Mafia(MafiaRole::Maniac))) 
-                            && !roles.contains(&Role::Mafia(MafiaRole::Doctor)) {
+                            (roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Mafia)) || 
+                            roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Maniac))) 
+                            && !roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Doctor)) {
                                 score += 1;
                             }
                         });
@@ -390,12 +382,12 @@ fn calculate_user_logs(users: Vec<Player>, best_players: HashSet<String>, select
             for checked_user in users.iter().filter(|u| u.role.contains(&Role::Mafia(MafiaRole::Maniac))) {
                 let current_user_history = user_history.get(&checked_user.id).expect("user_history not found");
                 current_user_history.iter().for_each(|(mafia_round, roles)| {
-                    if roles.contains(&Role::Mafia(MafiaRole::Prostitute)) {
+                    if roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute)) {
                         p_user_history.iter().for_each(|(prostitute_round, roles)| {
                             if mafia_round == prostitute_round && 
-                            (roles.contains(&Role::Mafia(MafiaRole::Mafia)) || 
-                            roles.contains(&Role::Mafia(MafiaRole::Maniac))) 
-                            && !roles.contains(&Role::Mafia(MafiaRole::Doctor)) {
+                            (roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Mafia)) || 
+                            roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Maniac))) 
+                            && !roles.contains(&TargetFlag::Mafia(MafiaTargetFlag::Doctor)) {
                                 score += 1;
                             }
                         });
@@ -441,19 +433,16 @@ fn SelectWinners(on_close: impl Fn() -> () + Clone + 'static, on_finish: impl Fn
             role: Role::Mafia(MafiaRole::Maniac),
             role_name: "Маньяк",
             role_name_color: "purple-950",
-            role_icon: "🔪",
         }),
         RoleInfo::Icon(IconRoleInfo{
             role: Role::Mafia(MafiaRole::Mafia),
             role_name: "Мафия",
             role_name_color: "red-950",
-            role_icon: "🔫",
         }),
         RoleInfo::Icon(IconRoleInfo{
             role: Role::Mafia(MafiaRole::Citizen),
             role_name: "Мирные",
             role_name_color: "green-950",
-            role_icon: "✋",
         }),
     ];
 
@@ -784,17 +773,19 @@ fn UserRoleNames(role: HashSet<Role>) -> impl IntoView{
 }
 
 #[component]
-fn UserKilledBy(killed_by: HashSet<Role>) -> impl IntoView {
+fn UserKilledBy(killed_by: HashSet<TargetFlag>) -> impl IntoView {
     view! {
         {move || {
             let killed_by = killed_by.clone().into_iter().filter(|role| {
                 // werewolf or witch or revealer or hunteress
                 matches!(
                     role,
-                    Role::Mafia(MafiaRole::Mafia)
-                        | Role::Mafia(MafiaRole::Maniac)
-                        | Role::Mafia(MafiaRole::Prostitute)
+                    TargetFlag::Mafia(MafiaTargetFlag::Mafia)
+                        | TargetFlag::Mafia(MafiaTargetFlag::Maniac)
+                        | TargetFlag::Mafia(MafiaTargetFlag::Prostitute)
                 )
+            }).map(|target_flag| {
+                MAFIA_ROLES.iter().find(|r| r.get_target_flag() == Some(target_flag)).unwrap().get_role()
             }).collect::<Vec<_>>();
 
             if killed_by.is_empty() {
@@ -823,7 +814,7 @@ fn UserKilledBy(killed_by: HashSet<Role>) -> impl IntoView {
 }
 
 #[component]
-fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> impl IntoView {
+fn UserHistory(hystory: Vec<(usize, HashSet<TargetFlag>)>, current: HashSet<TargetFlag>) -> impl IntoView {
     view! {
         <div class="relative z-20 flex flex-col gap-0.5 flex-wrap">
             <div class="flex items-center gap-0.5">
@@ -831,7 +822,7 @@ fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> 
                 current.iter().map(|role| {
                     let role = *role;
 
-                    if role != Role::WasKilled{
+                    if role != TargetFlag::WasKilled{
                         view!{
                             <UserRoleIcon role=role is_hystory=false />
                         }
@@ -846,19 +837,14 @@ fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> 
 }
 
 #[component]
-fn UserRoleIcon(role: Role, is_hystory: bool) -> impl IntoView {
-    MAFIA_ROLES
-        .iter()
-        .find(|r| r.get_role() == role)
-        .map(|role_info| {
-            view! {
-                <div 
-                    class=move || if is_hystory {"text-xs opacity-80 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
-                >
-                    {role_info.get_role_icon()}
-                </div>
-            }
-        })
+fn UserRoleIcon(role: TargetFlag, is_hystory: bool) -> impl IntoView {
+    view! {
+        <div 
+            class=move || if is_hystory {"text-xs opacity-80 w-4 h-4"} else {"text-xs rounded-md bg-white w-4 h-4"}
+        >
+            {role.get_icon()}
+        </div>
+    }
 }
 
 #[component]
@@ -1046,8 +1032,8 @@ fn DayVote() -> impl IntoView {
             users.iter_mut().for_each(|u| {
                 if selected_users.contains(&u.id) {
                     let mut citizen_history = HashSet::new();
-                    citizen_history.insert(Role::Mafia(MafiaRole::Citizen));
-                    citizen_history.insert(Role::WasKilled);
+                    citizen_history.insert(TargetFlag::Mafia(MafiaTargetFlag::Voted));
+                    citizen_history.insert(TargetFlag::WasKilled);
                     u.history_by.push((round + 1, citizen_history));
                     u.is_alive = false;
                     u.was_killed = true;
@@ -1083,8 +1069,8 @@ fn DayVote() -> impl IntoView {
                 }
 
                 let mut citizen_history = HashSet::new();
-                citizen_history.insert(Role::Mafia(MafiaRole::Citizen));
-                citizen_history.insert(Role::WasKilled);
+                citizen_history.insert(TargetFlag::Mafia(MafiaTargetFlag::Voted));
+                citizen_history.insert(TargetFlag::WasKilled);
                 user.history_by.push((round + 1, citizen_history));
                 user.is_alive = false;
                 user.was_killed = true;
@@ -1140,7 +1126,7 @@ fn DayVote() -> impl IntoView {
         users.iter().for_each(|user| {
             if user
                 .choosed_by
-                .contains(&Role::Mafia(MafiaRole::Prostitute))
+                .contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute))
                 && user.is_alive
             {
                 log.push(MafiaHint::Prostitute(user.clone()));
@@ -1542,25 +1528,25 @@ fn calculate_night_kills(users: &mut [Player]) {
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
     let killed_by_mafia = alive_users.iter_mut().find(|u| {
-        u.choosed_by.contains(&Role::Mafia(MafiaRole::Mafia))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Doctor))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute))
+        u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Mafia))
+            && !u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Doctor))
+            && !u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute))
     });
 
     if let Some(killed_by_mafia) = killed_by_mafia {
         killed_by_mafia.is_alive = false;
         killed_by_mafia.was_killed = true;
-        killed_by_mafia.choosed_by.insert(Role::WasKilled);
+        killed_by_mafia.choosed_by.insert(TargetFlag::WasKilled);
         if killed_by_mafia.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
             let saved_by_prostitute = alive_users
                 .iter_mut()
-                .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
+                .find(|u| u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute)));
 
             if let Some(saved_by_prostitute) = saved_by_prostitute {
                 if !saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Mafia)) {
                     saved_by_prostitute.is_alive = false;
                     saved_by_prostitute.was_killed = true;
-                    saved_by_prostitute.choosed_by.insert(Role::WasKilled);
+                    saved_by_prostitute.choosed_by.insert(TargetFlag::WasKilled);
                 }
             }
         }
@@ -1568,25 +1554,25 @@ fn calculate_night_kills(users: &mut [Player]) {
 
     // Maniac killed choosed user
     let killed_by_maniac = alive_users.iter_mut().find(|u| {
-        u.choosed_by.contains(&Role::Mafia(MafiaRole::Maniac))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Doctor))
-            && !u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute))
+        u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Maniac))
+            && !u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Doctor))
+            && !u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute))
     });
 
     if let Some(killed_by_maniac) = killed_by_maniac {
         killed_by_maniac.is_alive = false;
         killed_by_maniac.was_killed = true;
-        killed_by_maniac.choosed_by.insert(Role::WasKilled);
+        killed_by_maniac.choosed_by.insert(TargetFlag::WasKilled);
         if killed_by_maniac.role.contains(&Role::Mafia(MafiaRole::Prostitute)) {
             let saved_by_prostitute = alive_users
                 .iter_mut()
-                .find(|u| u.choosed_by.contains(&Role::Mafia(MafiaRole::Prostitute)));
+                .find(|u| u.choosed_by.contains(&TargetFlag::Mafia(MafiaTargetFlag::Prostitute)));
 
             if let Some(saved_by_prostitute) = saved_by_prostitute {
                 if !saved_by_prostitute.role.contains(&Role::Mafia(MafiaRole::Maniac)) {
                     saved_by_prostitute.is_alive = false;
                     saved_by_prostitute.was_killed = true;
-                    saved_by_prostitute.choosed_by.insert(Role::WasKilled);
+                    saved_by_prostitute.choosed_by.insert(TargetFlag::WasKilled);
                 }
             }
         }
@@ -1594,7 +1580,7 @@ fn calculate_night_kills(users: &mut [Player]) {
 }
 
 // check is user history contains role
-fn check_user_history_for_role(user: &Player, role: &Role) -> bool {
+fn check_user_history_for_role(user: &Player, role: &TargetFlag) -> bool {
     user.history_by.iter().any(|(_, roles)| {
         roles.contains(role)
     })
@@ -1608,16 +1594,19 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
 
     let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
     let role = role_info.get_role();
+    let target_flag = role_info.get_target_flag();
 
     let onclick_next_role = move || {
         let selected_user = selected_users.get();
-        game_ctx.users.update(|users| {
-            users.iter_mut().for_each(|u| {
-                if selected_user.contains(&u.id) {
-                    u.choosed_by.insert(role);
-                }
+        if let Some(target_flag) = target_flag {
+            game_ctx.users.update(|users| {
+                users.iter_mut().for_each(|u| {
+                    if selected_user.contains(&u.id) {
+                        u.choosed_by.insert(target_flag);
+                    }
+                });
             });
-        });
+        }
 
         let users = game_ctx.users.get();
         let next_role = get_next_night_alive_role(role, &users);
@@ -1639,7 +1628,12 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     let is_disabled = move |user: &Player| {
         !user.is_alive || //(!role_info_clone.get_can_choose_twice() && user.hystory_by.contains(&role))
         match role_targeting_rules {
-            NightTargetingRules::NotTheSame => check_user_history_for_role(&user, &role),
+            NightTargetingRules::NotTheSame => {
+                if let Some(target_flag) = target_flag {
+                    return check_user_history_for_role(&user, &target_flag)
+                }
+                false
+            },
             _ => false,
         }
     };
@@ -1715,7 +1709,7 @@ mod tests {
                 comment: "".to_string(),
                 is_guest: false,
                 role: HashSet::new(),
-                additional_role: HashSet::new(),
+                flags: HashSet::new(),
                 choosed_by: HashSet::new(),
                 history_by: Vec::new(),
                 is_alive: true,
@@ -1727,7 +1721,7 @@ mod tests {
                 comment: "".to_string(),
                 is_guest: false,
                 role: HashSet::new(),
-                additional_role: HashSet::new(),
+                flags: HashSet::new(),
                 choosed_by: HashSet::new(),
                 history_by: Vec::new(),
                 is_alive: true,
@@ -1739,7 +1733,7 @@ mod tests {
                 comment: "".to_string(),
                 is_guest: false,
                 role: HashSet::new(),
-                additional_role: HashSet::new(),
+                flags: HashSet::new(),
                 choosed_by: HashSet::new(),
                 history_by: Vec::new(),
                 is_alive: true,
@@ -1757,9 +1751,9 @@ mod tests {
         users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
         users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
 
-        users[0].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
-        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Doctor));
-        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+        users[0].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Mafia));
+        users[1].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Doctor));
+        users[2].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Prostitute));
 
         calculate_night_kills(&mut users);
 
@@ -1780,9 +1774,9 @@ mod tests {
         users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
         users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
 
-        users[0].choosed_by.insert(Role::Mafia(MafiaRole::Maniac));
-        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Doctor));
-        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+        users[0].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Maniac));
+        users[1].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Doctor));
+        users[2].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Prostitute));
 
         calculate_night_kills(&mut users);
 
@@ -1803,8 +1797,8 @@ mod tests {
         users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
         users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
 
-        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
-        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+        users[1].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Mafia));
+        users[1].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Prostitute));
 
         calculate_night_kills(&mut users);
         
@@ -1825,8 +1819,8 @@ mod tests {
         users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
         users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
 
-        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
-        users[1].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+        users[2].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Mafia));
+        users[1].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Prostitute));
 
         calculate_night_kills(&mut users);
         
@@ -1847,8 +1841,8 @@ mod tests {
         users[1].role.insert(Role::Mafia(MafiaRole::Doctor));
         users[2].role.insert(Role::Mafia(MafiaRole::Prostitute));
 
-        users[2].choosed_by.insert(Role::Mafia(MafiaRole::Mafia));
-        users[0].choosed_by.insert(Role::Mafia(MafiaRole::Prostitute));
+        users[2].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Mafia));
+        users[0].choosed_by.insert(TargetFlag::Mafia(MafiaTargetFlag::Prostitute));
 
         calculate_night_kills(&mut users);
         

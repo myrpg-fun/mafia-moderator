@@ -1,10 +1,14 @@
 use std::collections::HashSet;
 
+use leptos::*;
 use serde::{Deserialize, Serialize};
 use web_sys::js_sys::*;
 
 use crate::roles::*;
-use leptos::*;
+use role::Role;
+use target_flag::TargetFlag;
+
+use super::user_flag::UserFlag;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
@@ -13,9 +17,9 @@ pub struct Player {
     pub comment: String,
     pub is_guest: bool,
     pub role: HashSet<Role>,
-    pub additional_role: HashSet<Role>,
-    pub choosed_by: HashSet<Role>,
-    pub history_by: Vec<(usize, HashSet<Role>)>,
+    pub flags: HashSet<UserFlag>,
+    pub choosed_by: HashSet<TargetFlag>,
+    pub history_by: Vec<(usize, HashSet<TargetFlag>)>,
     pub is_alive: bool,
     pub was_killed: bool,
 }
@@ -28,7 +32,7 @@ impl Player {
             comment,
             is_guest,
             role: HashSet::new(),
-            additional_role: HashSet::new(),
+            flags: HashSet::new(),
             choosed_by: HashSet::new(),
             history_by: Vec::new(),
             is_alive: true,
@@ -60,7 +64,7 @@ pub fn reset_user_roles(users: &mut Vec<Player>) {
         user.role.clear();
         user.is_alive = true;
         user.was_killed = false;
-        user.additional_role.clear();
+        user.flags.clear();
         user.choosed_by.clear();
         user.history_by.clear();
     }

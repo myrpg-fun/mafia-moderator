@@ -1,16 +1,6 @@
-use serde::Deserialize;
-use serde::Serialize;
+use crate::user::user_flag::UserFlag;
 
-use crate::MafiaRole;
-use crate::WerewolfRole;
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub enum Role {
-    Mafia(MafiaRole),
-    Werewolf(WerewolfRole),
-    WasKilled,
-    None,
-}
+use super::{role::Role, target_flag::TargetFlag};
 
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum RoleInfo {
@@ -42,22 +32,19 @@ impl RoleInfo {
         }
     }
 
+    pub fn get_target_flag(&self) -> Option<TargetFlag> {
+        match self {
+            RoleInfo::Night(night) => Some(night.target_flag),
+            _ => None,
+        }
+    }
+
     pub fn get_check_role(&self) -> Role {
         match self {
             RoleInfo::Night(night) => night.check_role.unwrap_or(night.role),
             RoleInfo::Passive(passive) => passive.role,
             RoleInfo::Additional(additional) => additional.role,
             RoleInfo::Icon(icon) => icon.role,
-        }
-    }
-
-    // getters role_icon
-    pub fn get_role_icon(&self) -> &'static str {
-        match self {
-            RoleInfo::Night(night) => night.role_icon,
-            RoleInfo::Additional(additional) => additional.role_icon,
-            RoleInfo::Passive(passive) => passive.role_icon,
-            RoleInfo::Icon(icon) => icon.role_icon,
         }
     }
 
@@ -129,12 +116,12 @@ pub enum NightTargetingRules {
 pub struct NightRoleInfo {
     pub role: Role,
     pub check_role: Option<Role>,
-    pub role_icon: &'static str,
     pub role_name: &'static str,
     pub role_name_color: &'static str,
     pub prepare_description: &'static str,
     pub night_description: &'static str,
     pub targeting_rules: NightTargetingRules,
+    pub target_flag: TargetFlag,
 }
 
 impl PartialEq<Role> for NightRoleInfo {
@@ -147,9 +134,8 @@ impl PartialEq<Role> for NightRoleInfo {
 pub struct PassiveRoleInfo {
     pub role: Role,
     pub role_name: &'static str,
-    pub role_icon: &'static str,
     pub role_name_color: &'static str,
-    pub additional_role: Option<Role>,
+    pub user_flag: Option<UserFlag>,
     pub prepare_description: &'static str,
 }
 
@@ -162,9 +148,9 @@ impl PartialEq<Role> for PassiveRoleInfo {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct AdditionalRoleInfo {
     pub role: Role,
+    pub user_flag: UserFlag,
     pub role_name: &'static str,
     pub role_name_color: &'static str,
-    pub role_icon: &'static str,
     pub prepare_description: &'static str,
 }
 
@@ -179,7 +165,6 @@ pub struct IconRoleInfo {
     pub role: Role,
     pub role_name: &'static str,
     pub role_name_color: &'static str,
-    pub role_icon: &'static str,
 }
 
 impl PartialEq<Role> for IconRoleInfo {

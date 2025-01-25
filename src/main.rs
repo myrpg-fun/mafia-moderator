@@ -8,11 +8,11 @@ mod user;
 mod werewolf;
 
 use mafia::*;
-use roles::Role;
+use roles::role::Role;
 use serde::{Deserialize, Serialize};
-use user::*;
+use user::user::*;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, js_sys, Document, Window};
+use web_sys::{console, js_sys};
 use werewolf::*;
 
 #[derive(Serialize, Debug)]

@@ -9,12 +9,17 @@ use std::hash::Hash;
 
 use crate::roles::*;
 use crate::rust_create_new_game_log;
-use crate::user::*;
+use crate::user::user_flag::UserFlag;
+use crate::user::user_flag::WerewolfUserFlag;
 use crate::GameContext;
 use crate::GameContextHistory;
 use crate::GameState;
+use crate::Player;
 use crate::UserLogs;
 use leptos::*;
+use role::*;
+use role_info::*;
+use target_flag::*;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum WerewolfRole {
@@ -75,271 +80,243 @@ const _WEREWOLF_COLORS: [&str; 13] = [
     "ring-blue-600/50",
 ];
 
-pub const WEREWOLF_ROLES: [RoleInfo; 31] = [
-    RoleInfo::Icon(IconRoleInfo {
-        role: Role::WasKilled,
-        role_name: "Killed",
-        role_name_color: "red-950",
-        role_icon: "❌",
-    }),
-    RoleInfo::Icon(IconRoleInfo {
-        role: Role::Werewolf(WerewolfRole::Villager),
-        role_name: "Villagers",
-        role_name_color: "blue-950",
-        role_icon: "✋",
-    }),
+pub const WEREWOLF_ROLES: [RoleInfo; 29] = [
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Bodyguard),
         check_role: None,
         role_name: "Bodyguard",
         role_name_color: "green-950",
-        role_icon: "🛡️",
         prepare_description: "Выберите игрока Bodyguard",
         night_description: "Кого защитит Bodyguard?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Priest),
         check_role: None,
-        role_icon: "🙏",
         role_name: "Priest",
         role_name_color: "green-950",
         prepare_description: "Выберите игрока Priest",
         night_description: "Кого освятит Priest?",
         targeting_rules: NightTargetingRules::OnlyOne,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Priest),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Vampire),
         check_role: None,
-        role_icon: "🩸",
         role_name: "Vampire",
         role_name_color: "purple-950",
         prepare_description: "Выберите игрока Vampire",
         night_description: "Кого укусят Vampire?",
         targeting_rules: NightTargetingRules::Anyone,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Vampire),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Werewolf),
         check_role: None,
         role_name: "Werewolf",
         role_name_color: "red-950",
-        role_icon: "🐺",
         prepare_description: "Выберите игроков Werewolf",
         night_description: "Кого убьют Werewolf?",
         targeting_rules: NightTargetingRules::Anyone,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Werewolf),
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Minion),
         role_name: "Minion",
-        role_icon: "👺",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "red-950",
         prepare_description: "Выберите игрока Minion",
     }),
     RoleInfo::Additional(AdditionalRoleInfo {
         role: Role::Werewolf(WerewolfRole::DireWolf),
+        user_flag: UserFlag::Werewolf(WerewolfUserFlag::DireWolfLove),
         role_name: "Lone Wolf",
         role_name_color: "red-950",
-        role_icon: "💙",
         prepare_description: "Поставте сердечки игроку Lone Wolf и в кого он влюблен",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Cursed),
         role_name: "Cursed",
-        role_icon: "😈",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "purple-950",
         prepare_description: "Выберите игрока Cursed",
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::WitchHeal),
         check_role: None,
-        role_icon: "🌿",
         role_name: "Witch",
         role_name_color: "green-950",
         prepare_description: "Выберите игрока Witch",
         night_description: "Кого вылечит Witch?",
         targeting_rules: NightTargetingRules::OnlyOne,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::WitchHeal),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::WitchPoison),
         check_role: Some(Role::Werewolf(WerewolfRole::WitchHeal)),
-        role_icon: "☠️",
         role_name: "Witch",
         role_name_color: "green-950",
         prepare_description: "",
         night_description: "Кого отравит Witch?",
         targeting_rules: NightTargetingRules::OnlyOne,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::WitchPoison),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Seer),
         check_role: None,
         role_name: "Seer",
         role_name_color: "green-950",
-        role_icon: "🔍",
         prepare_description: "Выберите игрока Seer",
         night_description: "Кого проверит Seer?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Seer),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Mentalist),
         check_role: None,
         role_name: "Mentalist",
         role_name_color: "green-950",
-        role_icon: "👁️",
         prepare_description: "Выберите игрока Mentalist",
         night_description: "Выберите двух игроков, кого проверил Mentalist?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Mentalist),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::ParanormalInvestigator),
         check_role: None,
         role_name: "P.I.",
         role_name_color: "green-950",
-        role_icon: "📸",
         prepare_description: "Выберите игрока Paranormal Investigator",
         night_description: "Выберите 3х соседних игроков, кого проверил Paranormal Investigator?",
         targeting_rules: NightTargetingRules::OnlyOne,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::ParanormalInvestigator),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Spellcaster),
         check_role: None,
         role_name: "Spellcaster",
         role_name_color: "green-950",
-        role_icon: "🤐",
         prepare_description: "Выберите игрока Spellcaster",
         night_description: "Кого заглушил Spellcaster?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Spellcaster),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Huntress),
         check_role: None,
         role_name: "Huntress",
         role_name_color: "green-950",
-        role_icon: "🏹",
         prepare_description: "Выберите игрока Huntress",
         night_description: "Кого убъет Huntress?",
         targeting_rules: NightTargetingRules::OnlyOne,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Huntress),
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Revealer),
         check_role: None,
         role_name: "Revealer",
         role_name_color: "green-950",
-        role_icon: "🔦",
         prepare_description: "Выберите игрока Revealer",
         night_description: "Кого проверит Revealer?",
         targeting_rules: NightTargetingRules::NotTheSame,
+        target_flag: TargetFlag::Werewolf(WerewolfTargetFlag::Revealer),
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Lovers),
         role_name: "Mason",
-        role_icon: "❤️",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игроков Mason (Lovers)",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::ToughGuy),
         role_name: "ToughGuy",
-        role_icon: "💛",
-        additional_role: Some(Role::Werewolf(WerewolfRole::ToughGuy)),
+        user_flag: Some(UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive)),
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока ToughGuy",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Mayor),
         role_name: "Mayor",
-        role_icon: "🎖️",
-        additional_role: Some(Role::Werewolf(WerewolfRole::Mayor)),
+        user_flag: Some(UserFlag::Werewolf(WerewolfUserFlag::Mayor)),
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Mayor",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Lycan),
         role_name: "Lycan",
-        role_icon: "🌓",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Lycan",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Ghost),
         role_name: "Ghost",
-        role_icon: "👻",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Ghost",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Prince),
         role_name: "Prince",
-        role_icon: "👑",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Prince",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Diseased),
         role_name: "Diseased",
-        role_icon: "🦠",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Diseased",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::VillageIdiot),
         role_name: "Village Idiot",
-        role_icon: "🤪",
-        additional_role: Some(Role::Werewolf(WerewolfRole::VillageIdiot)),
+        user_flag: Some(UserFlag::Werewolf(WerewolfUserFlag::VillageIdiot)),
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Village Idiot",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Pacifist),
         role_name: "Pacifist",
-        role_icon: "🕊️",
-        additional_role: Some(Role::Werewolf(WerewolfRole::Pacifist)),
+        user_flag: Some(UserFlag::Werewolf(WerewolfUserFlag::Pacifist)),
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Pacifist",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Hunter),
         role_name: "Hunter",
-        role_icon: "🎯",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Hunter",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::TroubleMaker),
         role_name: "TroubleMaker",
-        role_icon: "🔥",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока TroubleMaker",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::OldHag),
         role_name: "Old Hag",
-        role_icon: "👵",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Old Hag",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::MadBomber),
         role_name: "Mad Bomber",
-        role_icon: "💣",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "blue-950",
         prepare_description: "Выберите игрока Mad Bomber",
     }),
     RoleInfo::Passive(PassiveRoleInfo {
         role: Role::Werewolf(WerewolfRole::Tanner),
         role_name: "Tanner",
-        role_icon: "🧵",
-        additional_role: None,
+        user_flag: None,
         role_name_color: "gray-950",
         prepare_description: "Выберите игрока Tanner",
     }),
@@ -351,7 +328,7 @@ enum WerewolfHint {
     Cursed(Player),
     LostHeart(Player),
     Spellcaster(Player),
-    Killed(Player, HashSet<Role>),
+    Killed(Player, HashSet<TargetFlag>),
     Seer(Vec<Player>),
     Vampire(Vec<Player>),
 }
@@ -531,7 +508,7 @@ fn calculate_user_logs(
         }
     }
 
-    let mut user_history = HashMap::<String, Vec<(usize, HashSet<Role>)>>::new();
+    let mut user_history = HashMap::<String, Vec<(usize, HashSet<TargetFlag>)>>::new();
     for user in users.iter() {
         let mut rounds = user.history_by.clone();
         rounds.push((last_round + 1, user.choosed_by.clone()));
@@ -550,21 +527,15 @@ fn calculate_user_logs(
                 .iter()
                 //sort WasKilled role
                 .sorted_by(|a, b| {
-                    if **a == Role::WasKilled {
+                    if **a == TargetFlag::WasKilled {
                         std::cmp::Ordering::Greater
-                    } else if **b == Role::WasKilled {
+                    } else if **b == TargetFlag::WasKilled {
                         std::cmp::Ordering::Less
                     } else {
                         std::cmp::Ordering::Equal
                     }
                 })
-                .map(|role| {
-                    WEREWOLF_ROLES
-                        .iter()
-                        .find(|r| r.get_role() == *role)
-                        .unwrap()
-                        .get_role_icon()
-                })
+                .map(|role| role.get_icon())
                 .collect::<Vec<_>>()
                 .join(" ");
 
@@ -654,31 +625,26 @@ fn SelectWinners(
             role: Role::Werewolf(WerewolfRole::Tanner),
             role_name: "Таннер",
             role_name_color: "gray-950",
-            role_icon: "🧵",
         }),
         RoleInfo::Icon(IconRoleInfo {
             role: Role::Werewolf(WerewolfRole::Mason),
             role_name: "Масоны (Любовники)",
             role_name_color: "blue-950",
-            role_icon: "❤️",
         }),
         RoleInfo::Icon(IconRoleInfo {
             role: Role::Werewolf(WerewolfRole::Vampire),
             role_name: "Вампиры",
             role_name_color: "purple-950",
-            role_icon: "🩸",
         }),
         RoleInfo::Icon(IconRoleInfo {
             role: Role::Werewolf(WerewolfRole::Werewolf),
             role_name: "Оборотни",
             role_name_color: "red-950",
-            role_icon: "🔫",
         }),
         RoleInfo::Icon(IconRoleInfo {
             role: Role::Werewolf(WerewolfRole::Villager),
             role_name: "Жители деревни",
             role_name_color: "green-950",
-            role_icon: "✋",
         }),
     ];
 
@@ -988,7 +954,7 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
         <div class="grid grid-cols-2 gap-y-1 gap-x-3">
             <For
                 each=users_sorted
-                key=|user| format!("{}-{}-{}-{}", user.id, user.role.len(), user.additional_role.len(), user.choosed_by.len())
+                key=|user| format!("{}-{}-{}-{}", user.id, user.role.len(), user.flags.len(), user.choosed_by.len())
                 children=move |user| {
                     let user_clone = user.clone();
 
@@ -1000,7 +966,7 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                             killed=false
                             is_selected=move |u| {
                                 match role_info{
-                                    RoleInfo::Additional(_) => u.additional_role.contains(&role),
+                                    RoleInfo::Additional(role_info) => u.flags.contains(&role_info.user_flag),
                                     _ => u.role.contains(&role),
                                 }
                             }
@@ -1008,11 +974,11 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                                 mafia_context.users.update(|users| {
                                     if let Some(user) = users.iter_mut().find(|u| **u == user) {
                                         match role_info{
-                                            RoleInfo::Additional(_) => {
-                                                if user.additional_role.contains(&role){
-                                                    user.additional_role.remove(&role);
+                                            RoleInfo::Additional(role_info) => {
+                                                if user.flags.contains(&role_info.user_flag){
+                                                    user.flags.remove(&role_info.user_flag);
                                                 }else{
-                                                    user.additional_role.insert(role);
+                                                    user.flags.insert(role_info.user_flag);
                                                 }
                                             }
                                             RoleInfo::Night(_) => {
@@ -1025,13 +991,13 @@ fn SelectUserForRole<'a>(role_info: &'a RoleInfo) -> impl IntoView {
                                             RoleInfo::Passive(passive_role_info) => {
                                                 if user.role.contains(&role){
                                                     user.role.remove(&role);
-                                                    if let Some(additional_role) = passive_role_info.additional_role {
-                                                        user.additional_role.remove(&additional_role);
+                                                    if let Some(additional_role) = passive_role_info.user_flag {
+                                                        user.flags.remove(&additional_role);
                                                     }
                                                 }else{
                                                     user.role.insert(role);
-                                                    if let Some(additional_role) = passive_role_info.additional_role {
-                                                        user.additional_role.insert(additional_role);
+                                                    if let Some(additional_role) = passive_role_info.user_flag {
+                                                        user.flags.insert(additional_role);
                                                     }
                                                 }
                                             }
@@ -1113,7 +1079,7 @@ fn UserSelectRole(
                 })}
         >
             <div class="flex-grow">
-                <div class="text-left">{user.name} <UserAdditionalRoles roles=user.additional_role /></div>
+                <div class="text-left">{user.name} <UserAdditionalRoles roles=user.flags /></div>
                 <UserRoleNames role=user.role />
             </div>
             <UserHistory hystory=history current=choosed />
@@ -1162,18 +1128,20 @@ fn UserRoleNames(role: HashSet<Role>) -> impl IntoView {
 }
 
 #[component]
-fn UserKilledBy(killed_by: HashSet<Role>) -> impl IntoView {
+fn UserKilledBy(killed_by: HashSet<TargetFlag>) -> impl IntoView {
     view! {
         {move || {
             let killed_by = killed_by.clone().into_iter().filter(|role| {
                 // werewolf or witch or revealer or hunteress
                 matches!(
                     role,
-                    Role::Werewolf(WerewolfRole::Werewolf)
-                        | Role::Werewolf(WerewolfRole::WitchPoison)
-                        | Role::Werewolf(WerewolfRole::Revealer)
-                        | Role::Werewolf(WerewolfRole::Huntress)
+                    TargetFlag::Werewolf(WerewolfTargetFlag::Werewolf)
+                        | TargetFlag::Werewolf(WerewolfTargetFlag::WitchPoison)
+                        | TargetFlag::Werewolf(WerewolfTargetFlag::Revealer)
+                        | TargetFlag::Werewolf(WerewolfTargetFlag::Huntress)
                 )
+            }).map(|target_flag| {
+                WEREWOLF_ROLES.iter().find(|r| r.get_target_flag() == Some(target_flag)).unwrap().get_role()
             }).collect::<Vec<_>>();
 
             if killed_by.is_empty() {
@@ -1209,14 +1177,17 @@ fn Separator() -> impl IntoView {
 }
 
 #[component]
-fn UserHistory(hystory: Vec<(usize, HashSet<Role>)>, current: HashSet<Role>) -> impl IntoView {
+fn UserHistory(
+    hystory: Vec<(usize, HashSet<TargetFlag>)>,
+    current: HashSet<TargetFlag>,
+) -> impl IntoView {
     view! {
         <div class="flex gap-0.5 flex-wrap min-h-4">
             {
                 current.iter().map(|role| {
                     let role = *role;
 
-                    if role != Role::WasKilled{
+                    if role != TargetFlag::WasKilled{
                         view!{
                             <UserRoleIcon role=role is_history=UserRoleIconType::Current />
                         }
@@ -1236,28 +1207,18 @@ enum UserRoleIconType {
 }
 
 #[component]
-fn UserRoleIcon(role: Role, is_history: UserRoleIconType) -> impl IntoView {
-    WEREWOLF_ROLES
-        .iter()
-        .find(|r| r.get_role() == role)
-        .map(|role_info| match is_history {
-            UserRoleIconType::Additional => view! {
-                " "{role_info.get_role_icon()}
+fn UserRoleIcon(role: TargetFlag, is_history: UserRoleIconType) -> impl IntoView {
+    view! {
+        <div
+            class=move || match is_history {
+                UserRoleIconType::History => "text-xs opacity-80 w-4 h-4",
+                UserRoleIconType::Current => "text-xs rounded-md bg-white w-4 h-4",
+                UserRoleIconType::Additional => "text-xs w-4 h-4",
             }
-            .into_view(),
-            _ => view! {
-                <div
-                    class=move || match is_history {
-                        UserRoleIconType::History => "text-xs opacity-80 w-4 h-4",
-                        UserRoleIconType::Current => "text-xs rounded-md bg-white w-4 h-4",
-                        UserRoleIconType::Additional => "text-xs w-4 h-4",
-                    }
-                >
-                    {role_info.get_role_icon()}
-                </div>
-            }
-            .into_view(),
-        })
+        >
+            {role.get_icon()}
+        </div>
+    }
 }
 
 #[component]
@@ -1289,12 +1250,12 @@ fn UserRoleName(role: Role) -> impl IntoView {
 }
 
 #[component]
-fn UserAdditionalRoles(roles: HashSet<Role>) -> impl IntoView {
+fn UserAdditionalRoles(roles: HashSet<UserFlag>) -> impl IntoView {
     view! {
         {
             roles.iter().map(|role| {
                 view!{
-                    <UserRoleIcon role=*role is_history=UserRoleIconType::Additional />
+                    " "{role.get_icon()}
                 }
             }).collect::<Vec<_>>().into_view()
         }
@@ -1460,27 +1421,27 @@ fn day_kill_user(user: &mut Player, round: usize) {
     }
 
     if user
-        .additional_role
-        .contains(&Role::Werewolf(WerewolfRole::Vampire))
+        .flags
+        .contains(&UserFlag::Werewolf(WerewolfUserFlag::VampireBite))
     {
         user.choosed_by
-            .insert(Role::Werewolf(WerewolfRole::Vampire));
+            .insert(TargetFlag::Werewolf(WerewolfTargetFlag::Vampire));
     } else {
         user.choosed_by
-            .insert(Role::Werewolf(WerewolfRole::Villager));
+            .insert(TargetFlag::Werewolf(WerewolfTargetFlag::Voted));
     }
     user.was_killed = true;
 
     if user
-        .additional_role
-        .contains(&Role::Werewolf(WerewolfRole::ToughGuy))
+        .flags
+        .contains(&UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive))
     {
-        user.additional_role
-            .remove(&Role::Werewolf(WerewolfRole::ToughGuy));
+        user.flags
+            .remove(&UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive));
         return;
     }
 
-    user.choosed_by.insert(Role::WasKilled);
+    user.choosed_by.insert(TargetFlag::WasKilled);
     user.is_alive = false;
 }
 
@@ -1602,7 +1563,7 @@ fn DayVote() -> impl IntoView {
         users.iter().for_each(|user| {
             if user
                 .choosed_by
-                .contains(&Role::Werewolf(WerewolfRole::Spellcaster))
+                .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Spellcaster))
                 && user.is_alive
             {
                 log.push(WerewolfHint::Spellcaster(user.clone()));
@@ -1611,8 +1572,8 @@ fn DayVote() -> impl IntoView {
 
         users.iter().for_each(|user| {
             if user
-                .additional_role
-                .contains(&Role::Werewolf(WerewolfRole::Mayor))
+                .flags
+                .contains(&UserFlag::Werewolf(WerewolfUserFlag::Mayor))
                 && user.is_alive
             {
                 log.push(WerewolfHint::Mayor(user.clone()));
@@ -1623,8 +1584,8 @@ fn DayVote() -> impl IntoView {
             .iter()
             .filter(|user| {
                 return user
-                    .additional_role
-                    .contains(&Role::Werewolf(WerewolfRole::Vampire))
+                    .flags
+                    .contains(&UserFlag::Werewolf(WerewolfUserFlag::VampireBite))
                     && user.is_alive;
             })
             .cloned()
@@ -2029,8 +1990,8 @@ fn clear_choosed_by(users: &mut [Player], round: usize) {
 
     for user in users.iter_mut() {
         // clear spellcaster silence
-        user.additional_role
-            .remove(&Role::Werewolf(WerewolfRole::Spellcaster));
+        user.flags
+            .remove(&UserFlag::Werewolf(WerewolfUserFlag::Silence));
     }
 }
 
@@ -2045,7 +2006,7 @@ fn calculate_night_kills(users: &mut [Player]) {
     // Mafia killed choosed user if he is not protected by doctor or prostitute
     let mut alive_users = users.iter_mut().filter(|u| u.is_alive).collect::<Vec<_>>();
 
-    fn is_user_protected(user: &Player, check_protection: &[Role]) -> bool {
+    fn is_user_protected(user: &Player, check_protection: &[TargetFlag]) -> bool {
         for role in check_protection {
             if user.choosed_by.contains(role) {
                 return true;
@@ -2054,20 +2015,20 @@ fn calculate_night_kills(users: &mut [Player]) {
         return false;
     }
 
-    fn kill_user(user: &mut Player, check_protection: &[Role]) {
+    fn kill_user(user: &mut Player, check_protection: &[UserFlag]) {
         if !user.is_alive {
             return;
         }
 
         for role in check_protection {
-            if user.additional_role.contains(role) {
-                user.additional_role.remove(role);
+            if user.flags.contains(role) {
+                user.flags.remove(role);
                 user.was_killed = true;
                 return;
             }
         }
 
-        user.choosed_by.insert(Role::WasKilled);
+        user.choosed_by.insert(TargetFlag::WasKilled);
         user.is_alive = false;
         user.was_killed = true;
     }
@@ -2078,41 +2039,42 @@ fn calculate_night_kills(users: &mut [Player]) {
         // Priest check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Priest))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Priest))
         {
             if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 || user.role.contains(&Role::Werewolf(WerewolfRole::Vampire))
             {
-                if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
-                    kill_user(user, &[Role::Werewolf(WerewolfRole::ToughGuy)]);
+                if !is_user_protected(user, &[TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard)])
+                {
+                    kill_user(user, &[UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive)]);
                 }
             } else {
-                user.additional_role
-                    .insert(Role::Werewolf(WerewolfRole::Priest));
+                user.flags
+                    .insert(UserFlag::Werewolf(WerewolfUserFlag::PriestProtection));
             }
         }
 
         // Vampire check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Vampire))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Vampire))
         {
             if !is_user_protected(
                 user,
                 &[
-                    Role::Werewolf(WerewolfRole::Bodyguard),
-                    Role::Werewolf(WerewolfRole::WitchHeal),
+                    TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard),
+                    TargetFlag::Werewolf(WerewolfTargetFlag::WitchHeal),
                 ],
             ) {
                 if user
-                    .additional_role
-                    .contains(&Role::Werewolf(WerewolfRole::Priest))
+                    .flags
+                    .contains(&UserFlag::Werewolf(WerewolfUserFlag::PriestProtection))
                 {
-                    user.additional_role
-                        .remove(&Role::Werewolf(WerewolfRole::Priest));
+                    user.flags
+                        .remove(&UserFlag::Werewolf(WerewolfUserFlag::PriestProtection));
                 } else {
-                    user.additional_role
-                        .insert(Role::Werewolf(WerewolfRole::Vampire));
+                    user.flags
+                        .insert(UserFlag::Werewolf(WerewolfUserFlag::VampireBite));
                 }
             }
         }
@@ -2120,17 +2082,18 @@ fn calculate_night_kills(users: &mut [Player]) {
         // Werewolf check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Werewolf))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Werewolf))
         {
             if user.role.contains(&Role::Werewolf(WerewolfRole::Cursed)) {
-                if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+                if !is_user_protected(user, &[TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard)])
+                {
                     // Priest check
                     if user
-                        .additional_role
-                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                        .flags
+                        .contains(&UserFlag::Werewolf(WerewolfUserFlag::PriestProtection))
                     {
-                        user.additional_role
-                            .remove(&Role::Werewolf(WerewolfRole::Priest));
+                        user.flags
+                            .remove(&UserFlag::Werewolf(WerewolfUserFlag::PriestProtection));
                     } else {
                         user.role.insert(Role::Werewolf(WerewolfRole::Werewolf));
                     }
@@ -2139,15 +2102,15 @@ fn calculate_night_kills(users: &mut [Player]) {
                 if !is_user_protected(
                     user,
                     &[
-                        Role::Werewolf(WerewolfRole::Bodyguard),
-                        Role::Werewolf(WerewolfRole::WitchHeal),
+                        TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard),
+                        TargetFlag::Werewolf(WerewolfTargetFlag::WitchHeal),
                     ],
                 ) {
                     kill_user(
                         user,
                         &[
-                            Role::Werewolf(WerewolfRole::Priest),
-                            Role::Werewolf(WerewolfRole::ToughGuy),
+                            UserFlag::Werewolf(WerewolfUserFlag::PriestProtection),
+                            UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive),
                         ],
                     );
                 }
@@ -2157,14 +2120,14 @@ fn calculate_night_kills(users: &mut [Player]) {
         // Witch check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::WitchPoison))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::WitchPoison))
         {
-            if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
+            if !is_user_protected(user, &[TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard)]) {
                 kill_user(
                     user,
                     &[
-                        Role::Werewolf(WerewolfRole::ToughGuy),
-                        Role::Werewolf(WerewolfRole::Priest),
+                        UserFlag::Werewolf(WerewolfUserFlag::PriestProtection),
+                        UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive),
                     ],
                 );
             }
@@ -2173,20 +2136,20 @@ fn calculate_night_kills(users: &mut [Player]) {
         // Huntress check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Huntress))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Huntress))
         {
             if !is_user_protected(
                 user,
                 &[
-                    Role::Werewolf(WerewolfRole::Bodyguard),
-                    Role::Werewolf(WerewolfRole::WitchHeal),
+                    TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard),
+                    TargetFlag::Werewolf(WerewolfTargetFlag::WitchHeal),
                 ],
             ) {
                 kill_user(
                     user,
                     &[
-                        Role::Werewolf(WerewolfRole::ToughGuy),
-                        Role::Werewolf(WerewolfRole::Priest),
+                        UserFlag::Werewolf(WerewolfUserFlag::PriestProtection),
+                        UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive),
                     ],
                 );
             }
@@ -2195,7 +2158,7 @@ fn calculate_night_kills(users: &mut [Player]) {
         // Revealer check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Revealer))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Revealer))
         {
             if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 || user.role.contains(&Role::Werewolf(WerewolfRole::Vampire))
@@ -2203,15 +2166,15 @@ fn calculate_night_kills(users: &mut [Player]) {
                 if !is_user_protected(
                     user,
                     &[
-                        Role::Werewolf(WerewolfRole::Bodyguard),
-                        Role::Werewolf(WerewolfRole::WitchHeal),
+                        TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard),
+                        TargetFlag::Werewolf(WerewolfTargetFlag::WitchHeal),
                     ],
                 ) {
                     kill_user(
                         user,
                         &[
-                            Role::Werewolf(WerewolfRole::ToughGuy),
-                            Role::Werewolf(WerewolfRole::Priest),
+                            UserFlag::Werewolf(WerewolfUserFlag::PriestProtection),
+                            UserFlag::Werewolf(WerewolfUserFlag::ToughGuyLive),
                         ],
                     );
                 }
@@ -2223,10 +2186,10 @@ fn calculate_night_kills(users: &mut [Player]) {
         // Spellcaster check
         if user
             .choosed_by
-            .contains(&Role::Werewolf(WerewolfRole::Spellcaster))
+            .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Spellcaster))
         {
-            user.additional_role
-                .insert(Role::Werewolf(WerewolfRole::Spellcaster));
+            user.flags
+                .insert(UserFlag::Werewolf(WerewolfUserFlag::Silence));
         }
     }
 
@@ -2245,7 +2208,7 @@ fn initialize_user_roles(users: &mut [Player]) {
 }
 
 fn calculate_after_kills(users: &mut [Player]) {
-    let mut kill_indices: Vec<(usize, Role)> = Vec::new();
+    let mut kill_indices: Vec<(usize, TargetFlag)> = Vec::new();
 
     for user in users.iter() {
         if user.is_alive {
@@ -2255,22 +2218,25 @@ fn calculate_after_kills(users: &mut [Player]) {
         if user.role.contains(&Role::Werewolf(WerewolfRole::Lovers)) {
             users.iter().enumerate().for_each(|(index, u)| {
                 if u.role.contains(&Role::Werewolf(WerewolfRole::Lovers)) {
-                    kill_indices.push((index, Role::Werewolf(WerewolfRole::Lovers)));
+                    kill_indices.push((index, TargetFlag::Werewolf(WerewolfTargetFlag::Lovers)));
                 }
             });
         }
 
         if user
-            .additional_role
-            .contains(&Role::Werewolf(WerewolfRole::DireWolf))
+            .flags
+            .contains(&UserFlag::Werewolf(WerewolfUserFlag::DireWolfLove))
             && !user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
         {
             users.iter().enumerate().for_each(|(index, u)| {
-                if u.additional_role
-                    .contains(&Role::Werewolf(WerewolfRole::DireWolf))
+                if u.flags
+                    .contains(&UserFlag::Werewolf(WerewolfUserFlag::DireWolfLove))
                     && u.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
                 {
-                    kill_indices.push((index, Role::Werewolf(WerewolfRole::DireWolf)));
+                    kill_indices.push((
+                        index,
+                        TargetFlag::Werewolf(WerewolfTargetFlag::DireWolfLove),
+                    ));
                 }
             });
         }
@@ -2282,7 +2248,7 @@ fn calculate_after_kills(users: &mut [Player]) {
             if u.is_alive {
                 u.is_alive = false;
                 u.was_killed = true;
-                u.choosed_by.insert(Role::WasKilled);
+                u.choosed_by.insert(TargetFlag::WasKilled);
                 u.choosed_by.insert(role);
             }
         }
@@ -2290,7 +2256,7 @@ fn calculate_after_kills(users: &mut [Player]) {
 }
 
 // check is user history contains role
-fn check_user_history_for_role(user: &Player, role: &Role) -> bool {
+fn check_user_history_for_role(user: &Player, role: &TargetFlag) -> bool {
     user.history_by
         .iter()
         .any(|(_, roles)| roles.contains(role))
@@ -2307,16 +2273,19 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
 
     let (selected_users, set_selected_users) = create_signal::<HashSet<String>>(HashSet::new());
     let role = role_info.get_role();
+    let target_flag = role_info.get_target_flag();
 
     let onclick_next_role = move || {
         let selected_users = selected_users.get();
-        game_ctx.users.update(|users| {
-            users.iter_mut().for_each(|u| {
-                if selected_users.contains(&u.id) {
-                    u.choosed_by.insert(role);
-                }
-            })
-        });
+        if let Some(target_flag) = target_flag {
+            game_ctx.users.update(|users| {
+                users.iter_mut().for_each(|u| {
+                    if selected_users.contains(&u.id) {
+                        u.choosed_by.insert(target_flag);
+                    }
+                })
+            });
+        }
 
         if show_cursed_convert.get() == false && role == Role::Werewolf(WerewolfRole::Werewolf) {
             let users = game_ctx.users.get();
@@ -2326,11 +2295,13 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
                     && u.is_alive
                     && !u
                         .choosed_by
-                        .contains(&Role::Werewolf(WerewolfRole::Bodyguard))
-                    && !u.choosed_by.contains(&Role::Werewolf(WerewolfRole::Priest))
+                        .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard))
                     && !u
-                        .additional_role
-                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                        .choosed_by
+                        .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Priest))
+                    && !u
+                        .flags
+                        .contains(&UserFlag::Werewolf(WerewolfUserFlag::PriestProtection))
                     && selected_users.contains(&u.id)
             });
 
@@ -2362,17 +2333,26 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
     };
 
     let role_targeting_rules = role_info.get_targeting_rules();
-    let is_fully_disabled = match role_targeting_rules {
-        NightTargetingRules::OnlyOne => users()
-            .iter()
-            .any(|u| check_user_history_for_role(u, &role)),
-        _ => false,
+    let is_fully_disabled = if let Some(target_flag) = target_flag {
+        match role_targeting_rules {
+            NightTargetingRules::OnlyOne => users()
+                .iter()
+                .any(|u| check_user_history_for_role(u, &target_flag)),
+            _ => false,
+        }
+    } else {
+        false
     };
     let is_disabled = move |user: &Player| {
         is_fully_disabled
             || !user.is_alive
             || match role_targeting_rules {
-                NightTargetingRules::NotTheSame => check_user_history_for_role(&user, &role),
+                NightTargetingRules::NotTheSame => {
+                    if let Some(target_flag) = target_flag {
+                        return check_user_history_for_role(&user, &target_flag);
+                    }
+                    false
+                }
                 _ => false,
             }
     };
@@ -2412,13 +2392,13 @@ fn NightTurn(role_info: &'static RoleInfo) -> impl IntoView {
                     && user.is_alive
                     && !user
                         .choosed_by
-                        .contains(&Role::Werewolf(WerewolfRole::Bodyguard))
+                        .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Bodyguard))
                     && !user
                         .choosed_by
-                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                        .contains(&TargetFlag::Werewolf(WerewolfTargetFlag::Priest))
                     && !user
-                        .additional_role
-                        .contains(&Role::Werewolf(WerewolfRole::Priest))
+                        .flags
+                        .contains(&UserFlag::Werewolf(WerewolfUserFlag::PriestProtection))
                 {
                     log.push(WerewolfHint::Cursed(user.clone()));
                 }
