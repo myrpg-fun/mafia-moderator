@@ -3,6 +3,7 @@ use leptos_use::utils::*;
 use leptos_use::*;
 use serde::Deserialize;
 use serde::Serialize;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -111,7 +112,7 @@ pub const WEREWOLF_ROLES: [RoleInfo; 31] = [
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Vampire),
         check_role: None,
-        role_icon: "🩸",
+        role_icon: "🧛",
         role_name: "Vampire",
         role_name_color: "purple-950",
         prepare_description: "Выберите игрока Vampire",
@@ -353,7 +354,7 @@ enum WerewolfHint {
     Spellcaster(Player),
     Killed(Player, HashSet<Role>),
     Seer(Vec<Player>),
-    Vampire(Vec<Player>),
+    //Vampire(Vec<Player>),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -522,16 +523,18 @@ fn calculate_user_logs(
     best_players: HashSet<String>,
     selected_winners: HashSet<Role>,
 ) -> Vec<UserLogs> {
-    let mut logs = Vec::<UserLogs>::new();
+    let mut logs = Vec::new();
     let mut last_round = 0;
 
+    // Calculate last round safely
     for user in users.iter() {
-        for (index, _) in user.history_by.iter() {
+        for (index, _) in &user.history_by {
             last_round = last_round.max(*index);
         }
     }
 
-    let mut user_history = HashMap::<String, Vec<(usize, HashSet<Role>)>>::new();
+    // Prepare user history with fallback for missing data
+    let mut user_history = HashMap::new();
     for user in users.iter() {
         let mut rounds = user.history_by.clone();
         rounds.push((last_round + 1, user.choosed_by.clone()));
@@ -539,69 +542,59 @@ fn calculate_user_logs(
         user_history.insert(user.id.clone(), rounds);
     }
 
+    // Process each user with error resilience
+    let empty_history = vec![(0, HashSet::new())];
     for user in users.iter() {
-        let mut rounds = Vec::<String>::new();
-        rounds.resize(last_round + 1, "".to_string());
+        let mut rounds = vec!["".to_string(); last_round + 1];
 
-        let current_user_history = user_history.get(&user.id).expect("user_history not found");
+        let current_user_history = user_history.get(&user.id).unwrap_or_else(|| &empty_history);
 
-        for (index, roles) in current_user_history.iter() {
-            let role = roles
+        for (index, roles) in current_user_history {
+            // Safe index calculation
+            let adjusted_index = index.saturating_sub(1).clamp(0, rounds.len() - 1);
+
+            // Safe role processing with default icon
+            let role_icons = roles
                 .iter()
                 //sort WasKilled role
                 .sorted_by(|a, b| {
                     if **a == Role::WasKilled {
-                        std::cmp::Ordering::Greater
+                        Ordering::Greater
                     } else if **b == Role::WasKilled {
-                        std::cmp::Ordering::Less
+                        Ordering::Less
                     } else {
-                        std::cmp::Ordering::Equal
+                        Ordering::Equal
                     }
                 })
                 .map(|role| {
                     WEREWOLF_ROLES
                         .iter()
                         .find(|r| r.get_role() == *role)
-                        .unwrap()
-                        .get_role_icon()
+                        .map(|r| r.get_role_icon())
+                        .unwrap_or("❓") // Fallback icon
                 })
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            // set role icons to rounds[index]
-            // index might be empty, we should create "" for it
-            let index = if *index <= 0 { 0 } else { *index - 1 };
-            rounds[index] = role;
+            rounds[adjusted_index] = role_icons;
         }
 
-        let winner = (selected_winners.contains(&Role::Werewolf(WerewolfRole::Werewolf))
-            && (user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
-                || user.role.contains(&Role::Werewolf(WerewolfRole::Minion))))
-            || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Vampire))
-                && (user.role.contains(&Role::Werewolf(WerewolfRole::Vampire))))
+        // Winner calculation without implicit assumptions
+        let winner = user.role.iter().any(|role| selected_winners.contains(role))
             || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Villager))
-                && !user.role.contains(&Role::Werewolf(WerewolfRole::Vampire))
-                && !user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf))
-                && !user.role.contains(&Role::Werewolf(WerewolfRole::Tanner))
-                && !user.role.contains(&Role::Werewolf(WerewolfRole::Minion)))
-            || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Tanner))
-                && user.role.contains(&Role::Werewolf(WerewolfRole::Tanner)))
-            || (selected_winners.contains(&Role::Werewolf(WerewolfRole::Mason))
-                && user.role.contains(&Role::Werewolf(WerewolfRole::Mason)));
+                && user.role.is_empty());
 
-        let score = 0;
-
-        let role = if user.role.is_empty() {
+        // Safe role processing with fallbacks
+        let role_str = if user.role.is_empty() {
             "Мирный".to_string()
         } else {
             user.role
                 .iter()
-                .map(|role| {
+                .filter_map(|role| {
                     WEREWOLF_ROLES
                         .iter()
                         .find(|r| r.get_role() == *role)
-                        .unwrap()
-                        .get_role_name()
+                        .map(|r| r.get_role_name())
                 })
                 .collect::<Vec<_>>()
                 .join(" • ")
@@ -628,11 +621,11 @@ fn calculate_user_logs(
             id: user.id.clone(),
             name: user.name.clone(),
             is_guest: user.is_guest,
-            role,
+            role: role_str,
             role_index,
             role_score,
             best_player,
-            score,
+            score: 0,
             winner,
             rounds,
         });
@@ -1619,20 +1612,20 @@ fn DayVote() -> impl IntoView {
             }
         });
 
-        let v_users = users
-            .iter()
-            .filter(|user| {
-                return user
-                    .additional_role
-                    .contains(&Role::Werewolf(WerewolfRole::Vampire))
-                    && user.is_alive;
-            })
-            .cloned()
-            .collect::<Vec<_>>();
+        // let v_users = users
+        //     .iter()
+        //     .filter(|user| {
+        //         return user
+        //             .additional_role
+        //             .contains(&Role::Werewolf(WerewolfRole::Vampire))
+        //             && user.is_alive;
+        //     })
+        //     .cloned()
+        //     .collect::<Vec<_>>();
 
-        if !v_users.is_empty() {
-            log.push(WerewolfHint::Vampire(v_users));
-        }
+        // if !v_users.is_empty() {
+        //     log.push(WerewolfHint::Vampire(v_users));
+        // }
 
         log
     });
@@ -1761,18 +1754,18 @@ fn DisplayLogs(logs: Memo<Vec<WerewolfHint>>) -> impl IntoView {
                                 </div>
                             }.into_view()
                         }
-                        WerewolfHint::Vampire(users) => {
-                            view!{
-                                <div class="w-full flex-wrap flex items-center justify-start gap-1.5 text-gray-500">
-                                    "🩸"{users.iter().map(|user| {
-                                        let user = user.clone();
-                                        view!{
-                                            <span class="bg-gray-100 text-gray-900 px-1 rounded-md whitespace-nowrap">{user.name}</span>
-                                        }.into_view()
-                                    }).collect::<Vec<_>>().into_view()}"укушены вампирами."
-                                </div>
-                            }.into_view()
-                        }
+                        // WerewolfHint::Vampire(users) => {
+                        //     view!{
+                        //         <div class="w-full flex-wrap flex items-center justify-start gap-1.5 text-gray-500">
+                        //             "🩸"{users.iter().map(|user| {
+                        //                 let user = user.clone();
+                        //                 view!{
+                        //                     <span class="bg-gray-100 text-gray-900 px-1 rounded-md whitespace-nowrap">{user.name}</span>
+                        //                 }.into_view()
+                        //             }).collect::<Vec<_>>().into_view()}"укушены вампирами."
+                        //         </div>
+                        //     }.into_view()
+                        // }
                     }
                 }
             ).collect::<Vec<_>>().into_view()}
@@ -2097,22 +2090,25 @@ fn calculate_night_kills(users: &mut [Player]) {
             .choosed_by
             .contains(&Role::Werewolf(WerewolfRole::Vampire))
         {
-            if !is_user_protected(
-                user,
-                &[
-                    Role::Werewolf(WerewolfRole::Bodyguard),
-                    Role::Werewolf(WerewolfRole::WitchHeal),
-                ],
-            ) {
+            if !is_user_protected(user, &[Role::Werewolf(WerewolfRole::Bodyguard)]) {
                 if user
                     .additional_role
                     .contains(&Role::Werewolf(WerewolfRole::Priest))
                 {
                     user.additional_role
                         .remove(&Role::Werewolf(WerewolfRole::Priest));
+                } else if user.role.contains(&Role::Werewolf(WerewolfRole::Werewolf)) {
+                    if !is_user_protected(
+                        user,
+                        &[
+                            Role::Werewolf(WerewolfRole::Bodyguard),
+                            Role::Werewolf(WerewolfRole::WitchHeal),
+                        ],
+                    ) {
+                        kill_user(user, &[Role::Werewolf(WerewolfRole::ToughGuy)]);
+                    }
                 } else {
-                    user.additional_role
-                        .insert(Role::Werewolf(WerewolfRole::Vampire));
+                    user.role.insert(Role::Werewolf(WerewolfRole::Vampire));
                 }
             }
         }
@@ -2242,6 +2238,15 @@ fn calculate_night_kills(users: &mut [Player]) {
 
 fn initialize_user_roles(users: &mut [Player]) {
     // init additional roles
+
+    // vampire
+    users
+        .iter_mut()
+        .filter(|u| u.role.contains(&Role::Werewolf(WerewolfRole::Vampire)))
+        .for_each(|u| {
+            u.additional_role
+                .insert(Role::Werewolf(WerewolfRole::Vampire));
+        });
 }
 
 fn calculate_after_kills(users: &mut [Player]) {
@@ -2256,6 +2261,18 @@ fn calculate_after_kills(users: &mut [Player]) {
             users.iter().enumerate().for_each(|(index, u)| {
                 if u.role.contains(&Role::Werewolf(WerewolfRole::Lovers)) {
                     kill_indices.push((index, Role::Werewolf(WerewolfRole::Lovers)));
+                }
+            });
+        }
+
+        if user
+            .additional_role
+            .contains(&Role::Werewolf(WerewolfRole::Vampire))
+            && user.role.contains(&Role::Werewolf(WerewolfRole::Vampire))
+        {
+            users.iter().enumerate().for_each(|(index, u)| {
+                if u.role.contains(&Role::Werewolf(WerewolfRole::Vampire)) {
+                    kill_indices.push((index, Role::Werewolf(WerewolfRole::Vampire)));
                 }
             });
         }
