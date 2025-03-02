@@ -21,6 +21,7 @@ use leptos::*;
 pub enum WerewolfRole {
     None,
     Villager,
+    Drunk,
     Werewolf,
     Minion,
     DireWolf,
@@ -76,7 +77,7 @@ const _WEREWOLF_COLORS: [&str; 13] = [
     "ring-blue-600/50",
 ];
 
-pub const WEREWOLF_ROLES: [RoleInfo; 31] = [
+pub const WEREWOLF_ROLES: [RoleInfo; 32] = [
     RoleInfo::Icon(IconRoleInfo {
         role: Role::WasKilled,
         role_name: "Killed",
@@ -88,6 +89,14 @@ pub const WEREWOLF_ROLES: [RoleInfo; 31] = [
         role_name: "Villagers",
         role_name_color: "blue-950",
         role_icon: "✋",
+    }),
+    RoleInfo::Passive(PassiveRoleInfo {
+        role: Role::Werewolf(WerewolfRole::Drunk),
+        role_name: "Drunk",
+        role_icon: "👺",
+        additional_role: None,
+        role_name_color: "blue-950",
+        prepare_description: "Выберите игрока Drunk и посмотрите его роль",
     }),
     RoleInfo::Night(NightRoleInfo {
         role: Role::Werewolf(WerewolfRole::Bodyguard),
